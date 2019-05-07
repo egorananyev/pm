@@ -18,43 +18,28 @@ from datetime import datetime
 
 ## Initial variables.
 # experiment modes:
-toshi = False
-dummy_mode = True
-drift_check = False
+shocky = True
 # experiment variables:
-exp_name = 'eb1'
-trial_n = 5  # trials per condition row; 15 gives 120 trials
-cue_delay_min = 300  # the time frame before the location/blink cue
-cue_delay_max = 800
-blink_latency_min = 240  # these are in ms, because we need a random _integer_ in this range
-blink_latency_max = 500
-# the time window for the blink - quite conservative - should include the whole blink, but is independent of
-# the blink start/end
-blink_time_window = .3
-# display dimensions:
-if toshi:
-    # dr = (576, 432)
+exp_name = 'pm1'
+# timing variables:
+
+if shocky:
     ds = 61
     # dd = (17.2, 12.9)  # display dimensions in cm
     dr = (1152, 864)  # display resolution in px
     dd = (34.4, 25.8)  # display dimensions in cm
+    windowed = True
 else:
     dr = (1152, 864)  # display resolution in px
     ds = 65  # distance to screen in cm
     dd = (40.0, 30.0)  # display dimensions in cm ... 39.0 x 29.5
+    windowed = False
 # fixation cross:
 fix_size = 0.8
-# cue:
-cue_size = .8
-cue_off_y = 1
-cue_dur = .2
-# target:
-targ_off_x = 8
-targ_diam = 8  # .8 # TEMP
+# stimulus dimensions:
 
 ## getting user info about the experiment session:
-exp_info = {u'expt': exp_name, u'subj': u'1', u'cond': u'a', u'sess': u'1'}
-# conditions: 't'=training, 'c'=control, 'a'=artificial blink, 'v'=voluntary blink, 'd'=debug, 'm'=measurement
+exp_info = {u'expt': exp_name, u'subj': u'1', u'sess': u'1', u'block': u'0'}  # block==0 is training block
 exp_name = exp_info['expt']
 dlg = gui.DlgFromDict(dictionary=exp_info, title=exp_name)  # dialogue box
 if not dlg.OK:
@@ -62,65 +47,28 @@ if not dlg.OK:
 exp_info['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
 
 # Assigning conditions:
-debug = False
-eye_tracking = True  # true by default
-training = False
-voluntary = False
-shutters = False
-measure = False
-print('Condition: ' + exp_info['cond'])
-if exp_info['cond'] == 'm':
-    measure = True
-else:
-    if exp_info['cond'] == 'd':
-        debug = True
-        trial_n = 1
-        eye_tracking = False
-    if exp_info['cond'] == 't':
-        trial_n = 1
-        training = True
-    if exp_info['cond'] == 'v':
-        voluntary = True
-    if exp_info['cond'] == 'a':
-        import serial
-
-        shutters = True
-        ser = serial.Serial('/dev/ttyACM0', 9600)
-        ser.write('c')  # both sides clear
+train = False
+print('Block: ' + exp_info['block'])
+if exp_info['block'] == '0':
+    train = True
 
 # Handling condition instructions:
-if measure:
-    cond_instr = 'Please blink immediately after seeing the double arrow.'
-elif exp_info['cond'] in ['c', 'a']:
+if train:
     cond_instr = 'Please do the following:\n' \
-                 '(1) DO NOT BLINK during the trial - blink after the trial instead;\n' \
-                 '(2) Pay attention to the direction of the arrow and\n' \
-                 '(3) Indicate the location of the target (WHITE DOT) as soon as you see it by pressing LEFT or RIGHT.'
-else:  # for 'd', 'v', or 'c'
-    cond_instr = 'Please do the following:\n' \
-                 '(1) Blink immediately after you see an arrow;\n' \
-                 '(2) Pay attention to the direction of the arrow and\n' \
-                 '(3) Indicate the location of the target (WHITE DOT) as soon as you see it by pressing LEFT or RIGHT.'
+                 '(1) ...\n' \
+                 '(2) ...\n' \
+                 '(3) ...'
 
 ## Input and output
 
 # condition file:
-if not measure:
-    if exp_info['cond'] == 'd':
-        exp_conditions = importConditions('cond-files/cond_' + exp_name + '_d' + '.xlsx')
-    else:
-        # same design for all non-d conditions:
-        exp_conditions = importConditions('cond-files/cond_' + exp_name + '.xlsx')
+if train:
+    exp_conditions = importConditions('cond-files/cond_' + exp_name + '_train' + '.xlsx')
 else:
-    exp_conditions = importConditions('cond-files/cond_' + exp_name + '_m.xlsx')
+    exp_conditions = importConditions('cond-files/cond_' + exp_name + '.xlsx')
 
 # Trial handler depending on the measure or experimental stage:
-if measure:
-    out_file_name = 'measure'
-    trials = TrialHandler(exp_conditions, 12, extraInfo=exp_info)
-else:
-    out_file_name = 'beh_out'
-    trials = TrialHandler(exp_conditions, trial_n, extraInfo=exp_info)
+trials = TrialHandler(exp_conditions, 1, extraInfo=exp_info)
 
 # output file:
 exp_dir = '..' + os.sep + 'data' + os.sep + exp_name
@@ -132,56 +80,26 @@ else:
 subj_dir = exp_dir + os.sep + 'subj-%02d' % int(exp_info['subj'])
 if not os.path.exists(subj_dir):
     os.makedirs(subj_dir)
-cond_dir = subj_dir + os.sep + 'cond-' + exp_info['cond']
-if not os.path.exists(cond_dir):
-    os.makedirs(cond_dir)
-sess_dir = cond_dir + os.sep + 'sess-%s_%s' % (exp_info['sess'], exp_info['time'])
-if not os.path.exists(sess_dir):
-    os.makedirs(sess_dir)
-out_file_path = sess_dir + os.sep + out_file_name + '.csv'
+block_dir = subj_dir + os.sep + 'block-%s_%s' % (exp_info['block'], exp_info['time'])
+if not os.path.exists(block_dir):
+    os.makedirs(block_dir)
+out_file_path = block_dir + os.sep + 'beh_out.csv'
 
 # output matrix:
 output_mat = {}
 
-## Shutters condition also estimates blink duration to simulate physiological blinks
-if shutters:
-    all_sess_dirs = os.listdir(subj_dir + os.sep + 'cond-m')
-    last_sess_dir = all_sess_dirs[len(all_sess_dirs) - 1]
-    blink_params = pd.read_csv(subj_dir + os.sep + 'cond-m' + os.sep + last_sess_dir + os.sep + 'blink_params.csv')
-    blink_dur_ave = np.mean(blink_params['blink_duration'])
-    blink_dur_std = np.std(blink_params['blink_duration'])
-    # The later functions will run as follows:
-    # np.random.normal(blink_dur_ave, blink_dur_std)
-
-## EyeLink setup
-if not dummy_mode:
-    tracker = pylink.EyeLink('100.1.1.1')
-else:
-    tracker = pylink.EyeLink(None)
-
-# Note that the file name cannot exceeds 8 characters. Open eyelink data files as early to record as possible.
-edf_data_file_name = 'eye_out.edf'
-tracker.openDataFile(edf_data_file_name)
-# add personalized data file header (preamble text)
-tracker.sendCommand("add_file_preamble_text 'Study: Influence of blinks on attentional cueing'")
-
 ## Monitor setup
-if toshi:
-    mon = monitors.Monitor('Toshi', width=dd[0], distance=ds)
+if shocky:
+    mon = monitors.Monitor('Shocky', width=dd[0], distance=ds)
     mon.setSizePix(dr)
-    window = visual.Window(dr, monitor=mon, fullscr=True, screen=1, units='deg')
+    window = visual.Window(dr, monitor=mon, fullscr=False, screen=1, units='deg')
 else:
-    # you MUST specify the physical properties of your monitor first, otherwise you won't be able to properly use
-    # different screen "units" in psychopy. One may define his/her monitor object within the GUI, but
-    # I find it is a better practice to put things all under control in the experimental script instead.
-    mon = monitors.Monitor('station3')  # , width=dd[0], distance=ds)
-    # mon.setSizePix(dr)
-    print('----------------')
-    print(mon.getDistance())
+    # TODO make sure that 'station3' monitor profile exists and is properly configured
+    mon = monitors.Monitor('station3')
     window = visual.Window(dr, fullscr=True, monitor=mon, color=[-.5, -.5, -.5], units='deg',
                            allowStencil=True, autoLog=False, screen=0, waitBlanking=False)
 
-if toshi:
+if shocky:
     frame_rate = 60
 else:
     frame_rate = window.getActualFrameRate()
@@ -195,55 +113,9 @@ instr_text = cond_instr + space_text
 instr_text_stim = visual.TextStim(window, text=instr_text, height=.8)
 fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, height=fix_size)
 
-# cue:
-arrow_vert = [(.5, 0), (0, .3), (0, .1), (-.5, .1), (-.5, -.1), (0, -.1), (0, -.3)]
-cue_arrow = visual.ShapeStim(window, vertices=arrow_vert, fillColor='black', size=cue_size, lineColor='black',
-                             pos=(0, cue_off_y))
-double_arrow_vert = [(.5, 0), (.2, .3), (.2, .1), (-.2, .1), (-.2, .3), (-.5, 0),
-                     (-.2, -.3), (-.2, -.1), (.2, -.1), (.2, -.3)]
-double_arrow = visual.ShapeStim(window, vertices=double_arrow_vert, fillColor='black', size=cue_size, lineColor='black',
-                                pos=(0, cue_off_y))
-
 # target:
-targ = visual.Circle(window, radius=targ_diam / 2, edges=32, pos=(10, 0), fillColor='grey')
-
-## Eye-tracking calibration:
-# call the custom calibration routine "EyeLinkCoreGraphicsPsychopy.py", instead of the default
-# routines that were implemented in SDL
-custom_calibration = EyeLinkCoreGraphicsPsychoPy(tracker, window)
-pylink.openGraphicsEx(custom_calibration)
-
-## STEP V: Set up the tracker
-# we need to put the tracker in offline mode before we change its configurations
-tracker.setOfflineMode()
-# sampling rate, 250, 500, 1000, or 2000; this command won't work for EyeLInk II/I
-tracker.sendCommand('sample_rate 500')
-# inform the tracker the resolution of the subject display
-# [see Eyelink Installation Guide, Section 8.4: Customizing Your PHYSICAL.INI Settings ]
-tracker.sendCommand("screen_pixel_coords = 0 0 %d %d" % (dr[0] - 1, dr[1] - 1))
-# save display resolution in EDF data file for Data Viewer integration purposes
-# [see Data Viewer User Manual, Section 7: Protocol for EyeLink Data to Viewer Integration]
-tracker.sendMessage("DISPLAY_COORDS = 0 0 %d %d" % (dr[0] - 1, dr[1] - 1))
-# specify the calibration type, H3, HV3, HV5, HV13 (HV = horizontal/vertical),
-tracker.sendCommand("calibration_type = HV5")  # tracker.setCalibrationType('HV9') also works, see the Pylink manual
-# Set the tracker to parse Events using "GAZE" (or "HREF") data
-tracker.sendCommand("recording_parse_type = GAZE")
-# Online parser configuration: 0-> standard/cognitive, 1-> sensitive/psychophysiological
-# the Parser for EyeLink I is more conservative, see below
-# [see Eyelink User Manual, Section 4.3: EyeLink Parser Configuration]
-tracker.sendCommand('select_parser_configuration 0')
-# Host tracking software version is 5
-
-## Sending eye-tracker commands and calibration:
-# specify the EVENT and SAMPLE data that are stored in EDF or retrievable from the Link
-# See Section 4 Data Files of the EyeLink user manual
-tracker.sendCommand("file_event_filter = LEFT,RIGHT,FIXATION,SACCADE,BLINK,MESSAGE,BUTTON,INPUT")
-tracker.sendCommand("link_event_filter = LEFT,RIGHT,FIXATION,FIXUPDATE,SACCADE,BLINK,BUTTON,INPUT")
-tracker.sendCommand("file_sample_data  = LEFT,RIGHT,GAZE,AREA,GAZERES,STATUS,HTARGET,INPUT")
-tracker.sendCommand("link_sample_data  = LEFT,RIGHT,GAZE,GAZERES,AREA,STATUS,HTARGET,INPUT")
-
-# Calibration:
-tracker.doTrackerSetup()
+# TODO substitute with a Gabor stimulus
+stim1 = visual.Circle(window, radius=stim_diam / 2, edges=32, pos=(10, 0), fillColor='grey')
 
 
 ## Handy routines:
@@ -266,19 +138,14 @@ def frame_routine():
 
 # Also no variation across frames, but only available upon call, which is made only in key registering phase.
 def exit_routine():
-    if shutters:
-        ser.write('z')
-        print('Closed the goggles.')
 
     # Behavioural data output:
     if not output_mat:  # means that the dictionary is empty
         print('the output file is empty')
     else:
-        if measure:
-            data_columns = ['exp_name', 'subj', 'cond', 'sess', 'trial_id', 'cue_delay', 'trial_start', 'trial_end']
-        else:
-            data_columns = ['exp_name', 'subj', 'cond', 'sess', 'trial_id', 'cue_delay', 'targ_right', 'cue_valid',
-                            'blink_latency', 'shutter_dur', 'trial_start', 'trial_end', 'corr_resp', 'rt']
+        # TODO stopped here
+        data_columns = ['exp_name', 'subj', 'cond', 'sess', 'trial_id', 'cue_delay', 'targ_right', 'cue_valid',
+                        'blink_latency', 'shutter_dur', 'trial_start', 'trial_end', 'corr_resp', 'rt']
         pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
         print('output file path is ' + out_file_path)
 
