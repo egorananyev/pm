@@ -22,6 +22,15 @@ shocky = True
 # experiment variables:
 exp_name = 'pm1'
 # timing variables:
+fix_dur = 200  # in ms
+stim_dur = 20
+beg_buff = 100  # beginning buffer of fixation
+end_buff = beg_buff
+wiggle = 100  # additional 'wiggle room' for jittering of stimulus onset
+# interval duration includes two stimulus time windows to make the intervals consistent even if SOA=0:
+interval_dur = stim_dur * 2 + beg_buff + end_buff + wiggle
+# trial duration:
+trial_dur = fix_dur + interval_dur * 2
 
 if shocky:
     ds = 61
@@ -143,9 +152,8 @@ def exit_routine():
     if not output_mat:  # means that the dictionary is empty
         print('the output file is empty')
     else:
-        # TODO stopped here
-        data_columns = ['exp_name', 'subj', 'cond', 'sess', 'trial_id', 'cue_delay', 'targ_right', 'cue_valid',
-                        'blink_latency', 'shutter_dur', 'trial_start', 'trial_end', 'corr_resp', 'rt']
+        # TODO fill in stim info and subject's response
+        data_columns = ['exp_name', 'subj', 'block', 'trial_id']  # log info # stim info # subj resp
         pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
         print('output file path is ' + out_file_path)
 
@@ -154,28 +162,6 @@ def exit_routine():
     instr_text_stim.setText('    Finished!\nRecording data...')
     instr_text_stim.draw()
     window.flip()
-
-    if not dummy_mode:
-        # EDF output:
-        # close the EDF data file
-        tracker.setOfflineMode()
-        tracker.closeDataFile()
-        pylink.pumpDelay(50)
-        # Get the EDF data
-        tracker.receiveDataFile(edf_data_file_name, sess_dir + os.sep + edf_data_file_name)
-        # Converting the EDF to ASC from within this code
-        print('converting EDF to ASC, zipping it, and moving the original EDF file to a different directory')
-        call(['edf2asc', sess_dir + os.sep + edf_data_file_name])
-        call(['gzip', sess_dir + os.sep + 'eye_out.asc'])
-        call(['mv', sess_dir + os.sep + edf_data_file_name,
-              '..' + os.sep + 'edf_data' + os.sep + exp_info['time'] + '.edf'])
-        # close the link to the tracker
-        tracker.close()
-
-    # close the graphics
-    pylink.closeGraphics()
-    window.close()
-    core.quit()
 
 
 ## Initiating the trial loop
@@ -197,97 +183,46 @@ for trial in trials:
     print('======TRIAL#' + str(n_trials_done) + '======')
 
     ## Randomizing variables and assigning the conditions:
-    cue_delay = np.random.randint(cue_delay_min, cue_delay_max + 1) / 1000
-    if measure:
-        blink_latency = blink_latency_max / 1000
-        cond_str = ''
-    else:
-        # Randomize the duration of the post-cue fixation & converting to sec:
-        blink_latency = np.random.randint(blink_latency_min,
-                                          blink_latency_max + 1) / 1000  # max value has to be one up
-        if debug:
-            print('blink_latency = %.3f' % blink_latency)
 
-        # Target location:
-        this_targ_loc = trial['targ_right'] * 2 - 1
-        if this_targ_loc > 0:
-            print('target location: Right')
-        else:
-            print('target location: Left')
-        targ.pos = (targ_off_x * this_targ_loc, 0)
+    # Randomization:
+    stim_interval_second = np.random.randint(2)  # 0 if 1st and 1 if 2nd - used in the loop check (BOOL is faster)
+    stim_interval = stim_interval_second + 1  # adding 1 to record
+         # timing jitter
 
-        # Cue validity:
-        cue_dir = (trial['cue_valid'] * 2 - 1) * this_targ_loc
-        # Logic: First, the cue validity is converted from binary [0, 1] to [-1, 1].
-        # It is then multiplied by the target location, which is either left [-1] or right [1].
-        # E.g., if the cue is valid for a target that appears on the right, cue direction is 1*1, rightward.
-        # If the cue is invalid for such a target, cue direction is -1*1, leftward.
-        cue_arrow.ori = 90 * (cue_dir - 1)
-        # Logic: If cue_dir == 1, 90 * 0 = 0, rightward orientation. If cue_dir == -1, 90 * (-2) = -180, leftward.
-        if trial['cue_valid']:
-            print('valid cue')
-        else:
-            print('invalid cue')
+    # Timing variables:
+    # time for first stimulus onset, in ms;
+    jitter = np.floor(0.1 * (np.random.randint(wiggle) + 1)) * 10
+    stim1_onset
+    stim1_twin  # stimulus time window (evaluated against flip_time to yield stimulus ON frames
+    stim2_twin
 
-        if shutters:
-            # noinspection PyUnboundLocalVariable
-            shutter_dur = np.random.normal(blink_dur_ave, blink_dur_std)
-        else:
-            shutter_dur = 0
+    # Setting stimulus characteristics:
+    stim1_c = trial['stim1_c']  # stimulus contrast
+    #...
 
-        # Condition string, to pass to the eye tracker, just in case:
-        cond_str = ('latency=%s targ_right=%s cue_valid=%s' % (blink_latency, trial['targ_right'], trial['cue_valid']))
+    ## Presentation phase
 
-    ## Starting the eye-tracking recording.
-
-    # We pump 150 ms delay to allow sufficient time to initiate trials, during which the fixation cross is displayed:
-    # flip_time = window.flip()
-    fix_cross.draw()
-
-    # Starting the recording:
-    # take the tracker offline
-    tracker.setOfflineMode()
-    # tracker.sendMessage('PRE_PUMP %.2f' % flip_time)
-    pylink.pumpDelay(50)
-
-    # send the standard "TRIALID" message to mark the start of a trial
-    # [see Data Viewer User Manual, Section 7: Protocol for EyeLink Data to Viewer Integration]
-    tracker.sendMessage('TRIALID %02d' % n_trials_done)
-
-    # record_status_message : show some info on the host PC
-    tracker.sendCommand("record_status_message 'Condition: %s'" % cond_str)
-
-    # drift check
-    if drift_check:
-        # noinspection PyBroadException
-        try:
-            err = tracker.doDriftCorrect(dr[0] / 2, dr[1] / 2, 1, 1)
-        except:
-            tracker.doTrackerSetup()
-        # read out calibration/drift-correction results:
-        print('drift summary = "' + tracker.getCalibrationMessage() + '"')
-
-    # start recording, parameters specify whether events and samples are stored in file and available over the link
-    error = tracker.startRecording(1, 1, 1, 1)
-    pylink.pumpDelay(100)  # wait for 100 ms to make sure data of interest is recorded
-
-    ## Cycling through the trial phases:
-    flip_time = window.flip()
-    trial_t_start = flip_time
-    # send trial initiation message only post-pump delay:
-    tracker.sendMessage('TRIAL_START %.2f' % flip_time)
-    if debug:
-        trial_elapsed_frames = 0  # counting frames for frame skip test
-
-    # Fixation cross:
-    fix_1_frames = int(cue_delay * frame_rate)
-    for fix_1_frame in range(fix_1_frames):
+    # First interval:
+    interval_frames = int(interval_dur * frame_rate)
+    for cur_frame in interval_frames:
         flip_time = frame_routine()
-        if debug:
-            # noinspection PyUnboundLocalVariable
-            trial_elapsed_frames += 1
 
-    # The location/blink cue:
+        if not stim_interval_second:
+            # stimulus presentation
+
+            # first stimulus time window:
+            if cur_frame in stim1_twin:
+                # draw the first stimulus
+                stim1.draw()
+
+            # second stimulus time window (may overlap with the first):
+            if cur_frame in stim2_twin:
+                # draw the second stimulus
+                stim2.draw()
+
+    ## Response phase:
+
+   # The location/blink cue:
     tracker.sendMessage('CUE_ONSET %.2f' % flip_time)
     cue_frames = int(cue_dur * frame_rate)
     for cue_frame in range(cue_frames):
