@@ -22,11 +22,11 @@ shocky = True
 # experiment variables:
 exp_name = 'pm1'
 # timing variables:
-fix_dur = 200  # in ms
-stim_dur = 20
-beg_buff = 100  # beginning buffer of fixation
+fix_dur = 20  # in frames
+stim_dur = 2
+beg_buff = 10  # beginning buffer of fixation
 end_buff = beg_buff
-wiggle = 100  # additional 'wiggle room' for jittering of stimulus onset
+wiggle = 10  # additional 'wiggle room' for jittering of stimulus onset
 # interval duration includes two stimulus time windows to make the intervals consistent even if SOA=0:
 interval_dur = stim_dur * 2 + beg_buff + end_buff + wiggle
 # trial duration:
@@ -102,6 +102,7 @@ if shocky:
     mon = monitors.Monitor('Shocky', width=dd[0], distance=ds)
     mon.setSizePix(dr)
     window = visual.Window(dr, monitor=mon, fullscr=False, screen=1, units='deg')
+    # TODO since the timing is measured in frames, double the frame count of all stimuli
 else:
     # TODO make sure that 'station3' monitor profile exists and is properly configured
     mon = monitors.Monitor('station3')
@@ -124,12 +125,13 @@ fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, he
 
 # target:
 # TODO substitute with a Gabor stimulus
-stim1 = visual.Circle(window, radius=stim_diam / 2, edges=32, pos=(10, 0), fillColor='grey')
-
+stim1 = visual.GratingStim(window, radius=stim_diam / 2, tex='sin', mask='gauss', pos=(0, 0))
+stim2 = stim1
 
 ## Handy routines:
 
 # Frame-skipping check:
+# TODO redo this considering that the time is measured in frames now
 def frame_skip_check(elapsed_t, elapsed_frames):
     # The number of elapsed frames should match the time:
     print('time=%.3f  frames=%d  rate=%.4f' % (elapsed_t, elapsed_frames, (elapsed_t / elapsed_frames)))
@@ -182,23 +184,37 @@ for trial in trials:
     n_trials_done += 1
     print('======TRIAL#' + str(n_trials_done) + '======')
 
-    ## Randomizing variables and assigning the conditions:
+    ## Assigning the trial variables:
 
-    # Randomization:
+    # Randomizing whether the stimuli will appear in the first or second interval:
     stim_interval_second = np.random.randint(2)  # 0 if 1st and 1 if 2nd - used in the loop check (BOOL is faster)
     stim_interval = stim_interval_second + 1  # adding 1 to record
-         # timing jitter
 
     # Timing variables:
-    # time for first stimulus onset, in ms;
-    jitter = np.floor(0.1 * (np.random.randint(wiggle) + 1)) * 10
-    stim1_onset
-    stim1_twin  # stimulus time window (evaluated against flip_time to yield stimulus ON frames
-    stim2_twin
+    soa = trial['SOA']  # stimulus onset asynchrony, in frames
+    # jitter the onset timing for the first or only stimulus, in frames:
+    jitter = np.random.randint(wiggle+1)  # the jitter could be zero
+    # onsets and frames of the stimuli:
+    stim1_onset = beg_buff + jitter  # time for first stimulus onsets, in frames, from the onset of the interval
+    stim1_twin = np.add(stim1_onset, range(stim_dur))  # stimulus time window, i.e., the frames in which it appears
+    stim2_onset = stim1_onset + soa
+    stim2_twin = np.add(stim2_onset, range(stim_dur))
 
-    # Setting stimulus characteristics:
-    stim1_c = trial['stim1_c']  # stimulus contrast
-    #...
+    # Stimulus contrast:
+    stim1_c = trial['stim1_c']  # stimulus contrast, log scaled
+    stim1.contrast = 10 * stim1_c
+    stim2_c = trial['stim2_c']
+    stim2.contrast = 10 * stim2_c
+
+    # Stimulus orientation:
+    angle_diff = trial['angle_diff']  # difference in orientation between stimuli (binary): 0 if same, 1 if diff
+    stim1_tiltR = np.random.randint(2)  # 0 if leftward and 1 if rightward tilted
+    stim1.ori = 135 - (90 * stim1_tiltR)  # 135 deg if leftward and 45 deg if rightward
+    if not angle_diff:
+        stim2_tiltR = stim1_tiltR
+    else:
+        stim2_tiltR = 1 - stim1_tiltR
+    stim2.ori = 135 - (90 * stim2_tiltR)  # the opposite of the first
 
     ## Presentation phase
 
