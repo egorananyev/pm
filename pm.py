@@ -19,18 +19,22 @@ from datetime import datetime
 ## Initial variables.
 # experiment modes:
 shocky = True
+debug = True
 # experiment variables:
 exp_name = 'pm1'
-# timing variables:
+# stimulus parameters:
+stim_diam = 5
+stim_sf = 5
+# timing variables (note that the number of frames will differ for 60 and 100 Hz refresh rates):
 fix_dur = 20  # in frames
 stim_dur = 2
 beg_buff = 10  # beginning buffer of fixation
 end_buff = beg_buff
 wiggle = 10  # additional 'wiggle room' for jittering of stimulus onset
 # interval duration includes two stimulus time windows to make the intervals consistent even if SOA=0:
-interval_dur = stim_dur * 2 + beg_buff + end_buff + wiggle
+interval_dur = stim_dur * 2 + beg_buff + end_buff + wiggle  # 34 frames, or 340 ms
 # trial duration:
-trial_dur = fix_dur + interval_dur * 2
+trial_dur = fix_dur + interval_dur * 2  # 88 frames
 
 if shocky:
     ds = 61
@@ -102,7 +106,14 @@ if shocky:
     mon = monitors.Monitor('Shocky', width=dd[0], distance=ds)
     mon.setSizePix(dr)
     window = visual.Window(dr, monitor=mon, fullscr=False, screen=1, units='deg')
-    # TODO since the timing is measured in frames, double the frame count of all stimuli
+    # Reassign stimulus durations for the slower refresh rate:
+    fix_dur = fix_dur / 2  # in frames
+    stim_dur = stim_dur / 2
+    beg_buff = beg_buff / 2  # beginning buffer of fixation
+    end_buff = beg_buff
+    wiggle = wiggle / 2  # additional 'wiggle room' for jittering of stimulus onset
+    interval_dur = stim_dur * 2 + beg_buff + end_buff + wiggle  # 17 frames
+    trial_dur = fix_dur + interval_dur * 2  # 44 frames
 else:
     # TODO make sure that 'station3' monitor profile exists and is properly configured
     mon = monitors.Monitor('station3')
@@ -125,14 +136,15 @@ fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, he
 
 # target:
 # TODO substitute with a Gabor stimulus
-stim1 = visual.GratingStim(window, radius=stim_diam / 2, tex='sin', mask='gauss', pos=(0, 0))
+stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
 stim2 = stim1
 
 ## Handy routines:
 
+
 # Frame-skipping check:
-# TODO redo this considering that the time is measured in frames now
 def frame_skip_check(elapsed_t, elapsed_frames):
+    # TODO redo this considering that the time is measured in frames now
     # The number of elapsed frames should match the time:
     print('time=%.3f  frames=%d  rate=%.4f' % (elapsed_t, elapsed_frames, (elapsed_t / elapsed_frames)))
 
@@ -152,7 +164,7 @@ def exit_routine():
 
     # Behavioural data output:
     if not output_mat:  # means that the dictionary is empty
-        print('the output file is empty')
+        print('\n===================\nthe output file is empty')
     else:
         # TODO fill in stim info and subject's response
         data_columns = ['exp_name', 'subj', 'block', 'trial_id']  # log info # stim info # subj resp
@@ -182,23 +194,27 @@ for trial in trials:
         event.waitKeys(' ')
 
     n_trials_done += 1
-    print('======TRIAL#' + str(n_trials_done) + '======')
+    print('\n======TRIAL#' + str(n_trials_done) + '======')
 
     ## Assigning the trial variables:
 
     # Randomizing whether the stimuli will appear in the first or second interval:
     stim_interval_second = np.random.randint(2)  # 0 if 1st and 1 if 2nd - used in the loop check (BOOL is faster)
     stim_interval = stim_interval_second + 1  # adding 1 to record
+    print('stim_interval=' + str(stim_interval))
 
     # Timing variables:
     soa = trial['SOA']  # stimulus onset asynchrony, in frames
+    if shocky:
+        soa = soa / 2
     # jitter the onset timing for the first or only stimulus, in frames:
     jitter = np.random.randint(wiggle+1)  # the jitter could be zero
+    print('jitter=' + str(jitter))
     # onsets and frames of the stimuli:
     stim1_onset = beg_buff + jitter  # time for first stimulus onsets, in frames, from the onset of the interval
-    stim1_twin = np.add(stim1_onset, range(stim_dur))  # stimulus time window, i.e., the frames in which it appears
+    stim1_twin = np.add(stim1_onset, range(int(stim_dur)))  # stimulus time window, i.e., the frames in which it appears
     stim2_onset = stim1_onset + soa
-    stim2_twin = np.add(stim2_onset, range(stim_dur))
+    stim2_twin = np.add(stim2_onset, range(int(stim_dur)))
 
     # Stimulus contrast:
     stim1_c = trial['stim1_c']  # stimulus contrast, log scaled
@@ -218,134 +234,93 @@ for trial in trials:
 
     ## Presentation phase
 
-    # First interval:
-    interval_frames = int(interval_dur * frame_rate)
-    for cur_frame in interval_frames:
-        flip_time = frame_routine()
+    # Iterating through the intervals:
+    fix_frames = int(fix_dur)
+    interval_frames = int(interval_dur)
+    for cur_interval in [0, 1]:
 
-        if not stim_interval_second:
+        # Fixation:
+        for cur_fix_frame in range(fix_frames):
+            flip_time = frame_routine()
+            if debug:
+                print('|', end='')
+
+        # Iterating through interval frames:
+        for cur_frame in range(interval_frames):
+            # flip_time = frame_routine()
+
             # stimulus presentation
+            if cur_interval == stim_interval_second:
 
-            # first stimulus time window:
-            if cur_frame in stim1_twin:
-                # draw the first stimulus
-                stim1.draw()
+                # first stimulus time window:
+                if cur_frame in stim1_twin:
+                    if debug:
+                        print('/', end='')
+                    # draw the first stimulus
+                    stim1.draw()
 
-            # second stimulus time window (may overlap with the first):
-            if cur_frame in stim2_twin:
-                # draw the second stimulus
-                stim2.draw()
+                # second stimulus time window (may overlap with the first):
+                elif cur_frame in stim2_twin:
+                    if debug:
+                        print('/', end='')
+                    # draw the second stimulus
+                    stim2.draw()
+                else:
+                    if debug:
+                        print('-', end='')
+            else:
+                if debug:
+                    print('-', end='')
+        if debug:
+            print(' ', end='')
 
     ## Response phase:
 
-   # The location/blink cue:
-    tracker.sendMessage('CUE_ONSET %.2f' % flip_time)
-    cue_frames = int(cue_dur * frame_rate)
-    for cue_frame in range(cue_frames):
-        flip_time = frame_routine()
-        if not measure:
-            cue_arrow.draw()
-        else:
-            double_arrow.draw()
-        if debug:
-            # noinspection PyUnboundLocalVariable
-            trial_elapsed_frames += 1
+    # Displaying the target and measuring the reaction time.
+    # while not targ_resp_given:
+    #
+    #     # Measuring the time it takes for the behavioural response:
+    #     flip_time = frame_routine()
+    #
+    #     # Measuring time elapsed since the start of the trial:
+    #     trial_elapsed_t = flip_time - trial_t_start
+    #
+    #     # Drawing the target:
+    #     targ.draw()
+    #
+    #     if debug:
+    #         # noinspection PyUnboundLocalVariable
+    #         trial_elapsed_frames += 1
+    #
+    #     ## Monitoring for key presses:
+    #     arrow_keys = event.getKeys(keyList=['left', 'right'])
+    #     if len(arrow_keys) > 0:
+    #         if 'left' in arrow_keys:
+    #             print('subject response: Left')
+    #             beh_resp = -1
+    #             targ_resp_given = True
+    #         else:
+    #             print('subject response: Right')
+    #             beh_resp = 1
+    #             targ_resp_given = True
+    #         if targ_resp_given:  # this is overwritten every time any key is pressed
+    #             rt = flip_time - rt_start
+    #             # noinspection PyUnboundLocalVariable
+    #             if beh_resp == this_targ_loc:
+    #                 corr_resp = 1  # correct location response
+    #                 accuracy_feedback = 'Correct!'
+    #             else:
+    #                 corr_resp = 0  # incorrect location response
+    #                 accuracy_feedback = 'INCORRECT!'
+    #             print('RT=%.2f correct?=%s' % (rt, corr_resp))
+    #             tracker.sendMessage('TRIAL_RESPONSE %.2f' % flip_time)
+    #             if debug:  # in debug mode, check if the frame rate looks okay
+    #                 # noinspection PyUnboundLocalVariable
+    #                 frame_skip_check(trial_elapsed_t, trial_elapsed_frames)
 
-    # Blink latency = the fixation period after the cue:
-    tracker.sendMessage('BLINK_LATENCY_ONSET %.2f' % flip_time)
-    blink_latency_frames = int(blink_latency * frame_rate)
-    for blink_latency_frame in range(blink_latency_frames):
-        flip_time = frame_routine()
-        if debug:
-            # noinspection PyUnboundLocalVariable
-            trial_elapsed_frames += 1
-
-    # Real or simulated blink follow the same timeline:
-    blink_time_period_frames = int(blink_time_window * frame_rate)
-    tracker.sendMessage('BLINK_WINDOW_ONSET %.2f' % flip_time)
-    if shutters:
-        # noinspection PyUnboundLocalVariable
-        shutter_frames = int(shutter_dur * frame_rate)
-        tracker.sendMessage('SHUTTER_START %.2f' % flip_time)
-        # noinspection PyUnboundLocalVariable
-        ser.write('z')
-        shutters_shut = True
-        print('Closed the goggles.')
-    for blink_time_period_frame in range(blink_time_period_frames):
-        flip_time = frame_routine()
-        if debug:
-            # noinspection PyUnboundLocalVariable
-            trial_elapsed_frames += 1
-        if shutters:
-            # noinspection PyUnboundLocalVariable
-            if shutters_shut:
-                # noinspection PyUnboundLocalVariable
-                if blink_time_period_frame > shutter_frames:
-                    tracker.sendMessage('SHUTTER_END %.2f' % flip_time)
-                    ser.write('c')
-                    shutters_shut = False
-                    print('Opened the goggles.')
-
-    ## Behavioural response: measuring the reaction time:
-
-    tracker.sendMessage('RESPONSE_ONSET %.2f' % flip_time)
-    if not measure:
-        # Trial components pertaining to behavioural response:
-        targ_resp_given = False
-        rt_start = flip_time
-
-        # Displaying the target and measuring the reaction time.
-        while not targ_resp_given:
-
-            # Measuring the time it takes for the behavioural response:
-            flip_time = frame_routine()
-
-            # Measuring time elapsed since the start of the trial:
-            trial_elapsed_t = flip_time - trial_t_start
-
-            # Drawing the target:
-            targ.draw()
-
-            if debug:
-                # noinspection PyUnboundLocalVariable
-                trial_elapsed_frames += 1
-
-            ## Monitoring for key presses:
-            arrow_keys = event.getKeys(keyList=['left', 'right'])
-            if len(arrow_keys) > 0:
-                if 'left' in arrow_keys:
-                    print('subject response: Left')
-                    beh_resp = -1
-                    targ_resp_given = True
-                else:
-                    print('subject response: Right')
-                    beh_resp = 1
-                    targ_resp_given = True
-                if targ_resp_given:  # this is overwritten every time any key is pressed
-                    rt = flip_time - rt_start
-                    # noinspection PyUnboundLocalVariable
-                    if beh_resp == this_targ_loc:
-                        corr_resp = 1  # correct location response
-                        accuracy_feedback = 'Correct!'
-                    else:
-                        corr_resp = 0  # incorrect location response
-                        accuracy_feedback = 'INCORRECT!'
-                    print('RT=%.2f correct?=%s' % (rt, corr_resp))
-                    tracker.sendMessage('TRIAL_RESPONSE %.2f' % flip_time)
-                    if debug:  # in debug mode, check if the frame rate looks okay
-                        # noinspection PyUnboundLocalVariable
-                        frame_skip_check(trial_elapsed_t, trial_elapsed_frames)
-
-    ## Post-trial RT and accuracy
-    print('post-trial phase')
+    ## Trial termination feedback:
     window.flip()
-    if not measure:
-        # noinspection PyUnboundLocalVariable
-        instr_text_stim.setText('Target Location: ' + accuracy_feedback +
-                                '\nReaction Time: %.2f' % rt +
-                                '\n\nPress the spacebar to continue')
-    else:
-        instr_text_stim.setText('Press the spacebar to continue')
+    instr_text_stim.setText('Press the spacebar to continue')
     instr_text_stim.draw()
     window.flip()
 
@@ -353,46 +328,22 @@ for trial in trials:
     event.waitKeys(' ')
 
     flip_time = window.flip()
-    tracker.sendMessage('TRIAL_END %.2f' % flip_time)
 
     ## Recording the data
-    # noinspection PyUnboundLocalVariable
-    if not measure:
-        # noinspection PyUnboundLocalVariable
-        output_mat[n_trials_done - 1] = {'exp_name': exp_name,
-                                         'subj': exp_info['subj'],
-                                         'cond': exp_info['cond'],
-                                         'sess': exp_info['sess'],
-                                         'trial_id': n_trials_done,
-                                         'cue_delay': cue_delay,
-                                         'targ_right': trial['targ_right'],
-                                         'cue_valid': trial['cue_valid'],
-                                         'blink_latency': blink_latency,
-                                         'shutter_dur': shutter_dur,
-                                         'trial_start': trial_t_start,
-                                         'trial_end': flip_time,
-                                         'corr_resp': corr_resp,
-                                         'rt': rt}
-    else:
-        output_mat[n_trials_done - 1] = {'exp_name': exp_name,
-                                         'subj': exp_info['subj'],
-                                         'cond': exp_info['cond'],
-                                         'sess': exp_info['sess'],
-                                         'trial_id': n_trials_done,
-                                         'cue_delay': cue_delay,
-                                         'trial_start': trial_t_start,
-                                         'trial_end': flip_time}
-
-    ## Stopping the eye tracking
-    # send trial variables for Data Viewer integration
-    # [see Data Viewer User Manual, Section 7: Protocol for EyeLink Data to Viewer Integration]
-    tracker.sendMessage('!V TRIAL_VAR task %s' % cond_str)
-
-    # send a message to mark the end of trial
-    # [see Data Viewer User Manual, Section 7: Protocol for EyeLink Data to Viewer Integration]
-    tracker.sendMessage('TRIAL_RESULT')
-    pylink.pumpDelay(100)
-    tracker.stopRecording()
+    # output_mat[n_trials_done - 1] = {'exp_name': exp_name,
+    #                                  'subj': exp_info['subj'],
+    #                                  'cond': exp_info['cond'],
+    #                                  'sess': exp_info['sess'],
+    #                                  'trial_id': n_trials_done,
+    #                                  'cue_delay': cue_delay,
+    #                                  'targ_right': trial['targ_right'],
+    #                                  'cue_valid': trial['cue_valid'],
+    #                                  'blink_latency': blink_latency,
+    #                                  'shutter_dur': shutter_dur,
+    #                                  'trial_start': trial_t_start,
+    #                                  'trial_end': flip_time,
+    #                                  'corr_resp': corr_resp,
+    #                                  'rt': rt}
 
 # Finishing the experiment
 exit_routine()
