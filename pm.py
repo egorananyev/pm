@@ -18,15 +18,18 @@ from datetime import datetime
 ## Initial variables.
 # experiment modes:
 shocky = True
-debug = True
+debug = False  # sets SOA to stim_dur+10 and lengthens stim_dur
 # experiment variables:
 exp_name = 'pm1'
 # stimulus parameters:
-stim_diam = 5  # for Shocky's Samsung monitor, a 5 deg stim = 6.3 cm
-stim_sf = 1  # cycles per degree (e.g., for a 5 deg stim, there will be 5 cycles)
+stim_diam = 1.5  # for Shocky's Samsung monitor, a 5 deg stim = 6.3 cm
+stim_sf = 4  # cycles per degree (e.g., for a 5 deg stim, there will be 5 cycles)
 # timing variables (note that the number of frames will differ for 60 and 100 Hz refresh rates):
-fix_dur = 20  # in frames
-stim_dur = 60  # 2
+fix_dur = 30  # in frames
+if debug:
+    stim_dur = 60
+else:
+    stim_dur = 2
 beg_buff = 10  # beginning buffer of fixation
 end_buff = beg_buff
 wiggle = 10  # additional 'wiggle room' for jittering of stimulus onset
@@ -115,7 +118,8 @@ output_mat = {}
 
 ## Monitor setup
 if shocky:
-    window = visual.Window(monitor=screen_name, fullscr=full_screen, screen=1, color=[-.5, -.5, -.5], units='deg')
+    # window = visual.Window(monitor=screen_name, fullscr=full_screen, screen=1, color=[-.5, -.5, -.5], units='deg')
+    window = visual.Window(monitor=screen_name, fullscr=full_screen, screen=1, units='deg')
 else:
     # TODO make sure that 'station3' monitor profile exists and is properly configured
     window = visual.Window(fullscr=full_screen, monitor=screen_name, color=[-.5, -.5, -.5], units='deg',
@@ -143,15 +147,29 @@ fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, he
 # TODO substitute with a Gabor stimulus
 stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
 stim2 = stim1
+box = visual.Rect(window, width=5, height=5)
+
+# confidence stimuli:
+conf_text = visual.TextStim(window, text='confidence?', height=.4, pos=[0, -1])
+box1 = visual.Rect(window, width=.5, height=.2, pos=(-1, -1))
+box1_text = visual.TextStim(window, text='1=none')
+box2 = visual.Rect(window, width=.5, height=.2, pos=(0, -1))
+box2_text = visual.TextStim(window, text='2=some')
+box3 = visual.Rect(window, width=.5, height=.2, pos=(1, -1))
+box3_text = visual.TextStim(window, text='3=full')
 
 ## Handy routines:
 
 
-# Frame-skipping check:
-def frame_skip_check(elapsed_t, elapsed_frames):
-    # TODO redo this considering that the time is measured in frames now
-    # The number of elapsed frames should match the time:
-    print('time=%.3f  frames=%d  rate=%.4f' % (elapsed_t, elapsed_frames, (elapsed_t / elapsed_frames)))
+# Confidence rendering:
+def draw_conf():
+    conf_text.draw()
+    box1.draw()
+    box1_text.draw()
+    box2.draw()
+    box2_text.draw()
+    box3.draw()
+    box3_text.draw()
 
 
 # This is done at every frame update, regardless of trial phase, so predefining:
@@ -166,20 +184,28 @@ def frame_routine():
 # Also no variation across frames, but only available upon call, which is made only in key registering phase.
 def exit_routine():
 
-    # Behavioural data output:
-    if not output_mat:  # means that the dictionary is empty
-        print('\n===================\nthe output file is empty')
-    else:
-        # TODO fill in stim info and subject's response
-        data_columns = ['exp_name', 'subj', 'block', 'trial_id']  # log info # stim info # subj resp
-        pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
-        print('output file path is ' + out_file_path)
-
     # Say goodbye:
     window.flip()
     instr_text_stim.setText('    Finished!\nRecording data...')
     instr_text_stim.draw()
     window.flip()
+
+    # Behavioural data output:
+    if not output_mat:  # means that the dictionary is empty
+        print('\n===================\nthe output file is empty')
+    else:
+        data_columns = ['exp_name', 'frame_rate', 'stim_dur', 'beg_buff', 'end_buff', 'wiggle',  # experiment specs
+                        'subj', 'sess', 'block', 'trial_id',  # log info
+                        'soa', 'angle_diff', 'stim1_ori', 'stim2_ori', 'stim1_c', 'stim2_c',  # stim info
+                        'stim_interval', 'jitter',  # randomized variables
+                        'resp_interval', 'resp_number', 'resp_ori', 'resp_conf']  # subj resp
+        pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
+        print('output file path is ' + out_file_path)
+
+    # Close the graphics
+    window.close()
+    core.quit()
+
 
 
 ## Initiating the trial loop
@@ -203,24 +229,28 @@ for trial in trials:
     ## Assigning the trial variables:
 
     # Token variables:
-    interval_resp_given = False
-    number_resp_given = False
-    ori_resp_given = False
+    resp_interval_given = False
+    resp_number_given = False
+    resp_ori_given = False
+    resp_conf_given = False
 
     # Randomizing whether the stimuli will appear in the first or second interval:
     stim_interval_second = np.random.randint(2)  # 0 if 1st and 1 if 2nd - used in the loop check (BOOL is faster)
     stim_interval = stim_interval_second + 1  # adding 1 to record
-    print('stim_interval=' + str(stim_interval))
 
-    # Timing variables:
-    soa = trial['SOA']  # stimulus onset asynchrony, in frames: must be greater than stimulus duration
-    if shocky:
-        soa = soa / 2
+    # Timing variables.
+
+    # Stimulus onset asynchrony, in frames: must be greater than stimulus duration:
     if debug:
         soa = stim_dur + 10
+    else:
+        soa = trial['SOA']
+        if shocky:
+            soa = soa / 2
     # Jittering the onset timing for the first or only stimulus, in frames:
     jitter = np.random.randint(wiggle+1)  # the jitter could be zero
-    print('jitter=' + str(jitter))
+    if debug:
+        print('jitter=' + str(jitter))
     # Onsets and frames of the stimuli:
     stim1_onset = beg_buff + jitter  # time for first stimulus onsets, in frames, from the onset of the interval
     stim1_twin = np.add(stim1_onset, range(int(stim_dur)))  # stimulus time window, i.e., the frames in which it appears
@@ -240,14 +270,25 @@ for trial in trials:
     # Stimulus orientation:
     angle_diff = trial['angle_diff']  # difference in orientation between stimuli (binary): 0 if same, 1 if diff
     stim1_tiltR = np.random.randint(2)  # 0 if leftward and 1 if rightward tilted
+    if stim1_tiltR:
+        stim1_ori = 'R'
+    else:
+        stim1_ori = 'L'
     stim1.ori = 135 - (90 * stim1_tiltR)  # 135 deg if leftward and 45 deg if rightward; checked 2019-05-15
     if not angle_diff:
         stim2_tiltR = stim1_tiltR
+        stim2_ori = stim1_ori
     else:
         stim2_tiltR = 1 - stim1_tiltR
+        if stim1_tiltR:
+            stim2_ori = 'L'
+        else:
+            stim2_ori = 'R'
     stim2.ori = 135 - (90 * stim2_tiltR)  # the opposite of the first
-    print('stim1 ori = ' + str(stim1.ori))
-    print('stim2 ori = ' + str(stim2.ori))
+
+    # Print trial specifics to screen:
+    print('interval=' + str(stim_interval) + ' soa=' + str(int(soa)) + ' diff=' + str(angle_diff) +
+          ' c1=' + str(stim1_c) + ' c2=' + str(stim2_c))
 
     ## Presentation phase
 
@@ -266,6 +307,7 @@ for trial in trials:
         # Iterating through interval frames:
         for cur_frame in range(interval_frames):
             flip_time = frame_routine()
+            box.draw()
 
             # stimulus presentation
             if cur_interval == stim_interval_second:
@@ -276,7 +318,6 @@ for trial in trials:
                         print('/', end='')
                     # draw the first stimulus
                     stim1.draw()
-
                 # second stimulus time window (may overlap with the first):
                 elif cur_frame in stim2_twin:
                     if debug:
@@ -290,78 +331,108 @@ for trial in trials:
                 if debug:
                     print('-', end='')
         if debug:
-            print(' ', end='')
-    print('\n', end='')
+            print('\n', end='')
 
     ## Response phase:
 
     # Interval response:
-    while not interval_resp_given:
+    while not resp_interval_given:
 
         window.flip()
-        instr_text_stim.setText('1st or 2nd interval?\n'
-                                'Left = 1st\n'
-                                'Right = 2nd')
+        instr_text_stim.setText('1st or 2nd interval?')
         instr_text_stim.draw()
 
         ## Monitoring for key presses:
-        arrow_keys = event.getKeys(keyList=['left', 'right'])
-        if len(arrow_keys) > 0:
-            if 'left' in arrow_keys:
-                print('interval response: First')
-                interval_resp = 1
-                interval_resp_given = True
-            else:
-                print('interval response: Second')
-                interval_resp = 2
-                interval_resp_given = True
+        num_keys = event.getKeys(keyList=['1', '2', 'escape'])
+        if len(num_keys) > 0:
+            if '1' in num_keys:
+                print('interval response: first')
+                resp_interval = 1
+                resp_interval_given = True
+            elif '2' in num_keys:
+                print('interval response: second')
+                resp_interval = 2
+                resp_interval_given = True
+            elif 'escape' in num_keys:
+                exit_routine()
 
     # Stimulus number response:
-    while not number_resp_given:
+    while not resp_number_given:
 
         window.flip()
-        instr_text_stim.setText('1 or 2 stimuli?\n'
-                                'Left = 1\n'
-                                'Right = 2')
+        instr_text_stim.setText('1 or 2 stimuli?')
         instr_text_stim.draw()
 
         ## Monitoring for key presses:
-        arrow_keys = event.getKeys(keyList=['left', 'right'])
-        if len(arrow_keys) > 0:
-            if 'left' in arrow_keys:
+        num_keys = event.getKeys(keyList=['1', '2', 'escape'])
+        if len(num_keys) > 0:
+            if '1' in num_keys:
                 print('stimulus number response: single')
-                number_resp = 1
-                number_resp_given = True
-            else:
+                resp_number = 1
+                resp_number_given = True
+            elif '2' in num_keys:
                 print('stimulus number response: double')
-                number_resp = 2
-                number_resp_given = True
+                resp_number = 2
+                resp_number_given = True
+            elif 'escape' in num_keys:
+                exit_routine()
 
     # Orientation response:
-    while not ori_resp_given:
+    while not resp_ori_given:
 
         window.flip()
         instr_text_stim.setText('Stimulus pattern?\n'
                                 'Left = leftward tilt\n'
                                 'Right = rightward tilt\n'
-                                'Down = plaid')
+                                'Down = both')
         instr_text_stim.draw()
 
         ## Monitoring for key presses:
-        arrow_keys = event.getKeys(keyList=['left', 'right', 'down'])
+        arrow_keys = event.getKeys(keyList=['left', 'right', 'down', 'escape'])
         if len(arrow_keys) > 0:
             if 'left' in arrow_keys:
                 print('orientation response: leftward tilt')
-                ori_resp = 1
-                ori_resp_given = True
+                resp_ori = 'L'
+                resp_ori_given = True
             elif 'right' in arrow_keys:
                 print('orientation response: rightward tilt')
-                ori_resp = 2
-                ori_resp_given = True
+                resp_ori = 'R'
+                resp_ori_given = True
             elif 'down' in arrow_keys:
                 print('orientation response: plaid')
-                ori_resp = 3
-                ori_resp_given = True
+                resp_ori = 'P'
+                resp_ori_given = True
+            elif 'escape' in num_keys:
+                exit_routine()
+
+    # Confidence response:
+    while not resp_conf_given:
+
+        window.flip()
+        instr_text_stim.setText('How confident are you\n'
+                                'in your responses?\n'
+                                '1 = not at all\n'
+                                '2 = somewhat\n'
+                                '3 = confident')
+        instr_text_stim.draw()
+
+        ## Monitoring for key presses:
+        num_keys = event.getKeys(keyList=['1', '2', '3', 'escape'])
+        if len(num_keys) > 0:
+            if '1' in num_keys:
+                print('confidence response: 1')
+                resp_conf = 1
+                resp_conf_given = True
+            elif '2' in num_keys:
+                print('confidence response: 2')
+                resp_conf = 2
+                resp_conf_given = True
+            elif '3' in num_keys:
+                print('confidence response: 3')
+                resp_conf = 3
+                resp_conf_given = True
+            elif 'escape' in num_keys:
+                exit_routine()
 
     ## Trial termination feedback:
     window.flip()
@@ -375,20 +446,16 @@ for trial in trials:
     flip_time = window.flip()
 
     ## Recording the data
-    # output_mat[n_trials_done - 1] = {'exp_name': exp_name,
-    #                                  'subj': exp_info['subj'],
-    #                                  'cond': exp_info['cond'],
-    #                                  'sess': exp_info['sess'],
-    #                                  'trial_id': n_trials_done,
-    #                                  'cue_delay': cue_delay,
-    #                                  'targ_right': trial['targ_right'],
-    #                                  'cue_valid': trial['cue_valid'],
-    #                                  'blink_latency': blink_latency,
-    #                                  'shutter_dur': shutter_dur,
-    #                                  'trial_start': trial_t_start,
-    #                                  'trial_end': flip_time,
-    #                                  'corr_resp': corr_resp,
-    #                                  'rt': rt}
+    output_mat[n_trials_done - 1] = {'exp_name': exp_name, 'frame_rate': frame_rate, 'stim_dur': stim_dur,
+                                     'beg_buff': beg_buff, 'end_buff': end_buff, 'wiggle': wiggle,
+                                     'subj': exp_info['subj'], 'sess': exp_info['sess'],
+                                     'block': exp_info['block'], 'trial_id': n_trials_done,
+                                     'soa': soa, 'angle_diff': angle_diff,
+                                     'stim1_ori': stim1_ori, 'stim2_ori': stim2_ori,
+                                     'stim1_c': stim1_c, 'stim2_c': stim2_c,
+                                     'stim_interval': stim_interval, 'jitter': jitter,
+                                     'resp_interval': resp_interval, 'resp_number': resp_number, 'resp_ori': resp_ori,
+                                     'resp_conf': resp_conf}
 
 # Finishing the experiment
 exit_routine()
