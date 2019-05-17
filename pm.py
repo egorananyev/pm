@@ -144,33 +144,64 @@ instr_text = cond_instr + space_text
 instr_text_stim = visual.TextStim(window, text=instr_text, height=.8)
 fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, height=fix_size)
 
-# target:
+# Target:
 stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
 stim2 = stim1
 box = visual.Rect(window, width=5, height=5)
 
-# Confidence buttons:
+# Response buttons & text:
+# Confidence:
 conf_text_height = .6
 conf_text = visual.TextStim(window, text='confidence?', height=conf_text_height, pos=[0, -1])
-conf_button_width = 2.3
-conf_button_height = .7
-conf_button_y_off = -1.8
-conf_button_x_off = 2.5
-conf_button1_pos = (-conf_button_x_off, conf_button_y_off)
-conf_button1 = visual.Rect(window, width=conf_button_width, height=conf_button_height, pos=conf_button1_pos)
+conf_button_dims = [2.3, .7]
+conf_button_off = [2.5, -1.8]
+conf_button1_pos = (-conf_button_off[0], conf_button_off[1])
+conf_button1 = visual.Rect(window, width=conf_button_dims[0], height=conf_button_dims[1], pos=conf_button1_pos)
 conf_button1_text = visual.TextStim(window, text='1=none', height=conf_text_height, pos=conf_button1_pos)
-conf_button2_pos = (0, conf_button_y_off)
-conf_button2 = visual.Rect(window, width=conf_button_width, height=conf_button_height, pos=conf_button2_pos)
+conf_button2_pos = (0, conf_button_off[1])
+conf_button2 = visual.Rect(window, width=conf_button_dims[0], height=conf_button_dims[1], pos=conf_button2_pos)
 conf_button2_text = visual.TextStim(window, text='2=some', height=conf_text_height, pos=conf_button2_pos)
-conf_button3_pos = (conf_button_x_off, conf_button_y_off)
-conf_button3 = visual.Rect(window, width=conf_button_width, height=conf_button_height, pos=conf_button3_pos)
+conf_button3_pos = (conf_button_off[0], conf_button_off[1])
+conf_button3 = visual.Rect(window, width=conf_button_dims[0], height=conf_button_dims[1], pos=conf_button3_pos)
 conf_button3_text = visual.TextStim(window, text='3=full', height=conf_text_height, pos=conf_button3_pos)
+# Interval:
+int_text_height = .6
+int_text = visual.TextStim(window, text='interval?', height=conf_text_height, pos=[0, 1])
+int_button_dims = [2.5, 1.2]
+int_button_off = [-1.8, 0]
+int_button1_pos = (-int_button_off[0], int_button_off[1])
+int_button1 = visual.Rect(window, width=int_button_dims[0], height=int_button_dims[1], pos=int_button1_pos)
+int_button1_text = visual.TextStim(window, text='1=first', height=int_text_height, pos=int_button1_pos)
+int_button2_pos = (int_button_off[0], int_button_off[1])
+int_button2 = visual.Rect(window, width=int_button_dims[0], height=int_button_dims[1], pos=int_button2_pos)
+int_button2_text = visual.TextStim(window, text='2=second', height=int_text_height, pos=int_button2_pos)
+# Number:
+num_text_height = .6
+num_text = visual.TextStim(window, text='number of\nobjects?', height=num_text_height, pos=[0, 1])
+num_button_dims = [2.5, 1.2]
+num_button_off = [-1.8, 0]
+num_button1_pos = (-num_button_off[0], num_button_off[1])
+num_button1 = visual.Rect(window, width=num_button_dims[0], height=num_button_dims[1], pos=num_button1_pos)
+num_button1_text = visual.TextStim(window, text='1=one', height=num_text_height, pos=num_button1_pos)
+num_button2_pos = (num_button_off[0], num_button_off[1])
+num_button2 = visual.Rect(window, width=num_button_dims[0], height=num_button_dims[1], pos=num_button2_pos)
+num_button2_text = visual.TextStim(window, text='2=two', height=num_text_height, pos=num_button2_pos)
+# Orientation:
+ori_text_height = .6
+ori_text = visual.TextStim(window, text='pattern?', height=conf_text_height, pos=[0, -1])
+ori_button_dims = [2.3, .7]
+ori_button_off = [2.5, 0]
+ori_button1_pos = (-ori_button_off[0], ori_button_off[1])
+ori_button1 = visual.Rect(window, width=ori_button_dims[0], height=ori_button_dims[1], pos=conf_button1_pos)
+ori_button1_text = visual.TextStim(window, text='Left\nTilt', height=ori_text_height, pos=conf_button1_pos)
+ori_button2_pos = (0, ori_button_off[1])
+ori_button2 = visual.Rect(window, width=ori_button_dims[0], height=ori_button_dims[1], pos=ori_button2_pos)
+ori_button2_text = visual.TextStim(window, text='Right\nTilt', height=ori_text_height, pos=ori_button2_pos)
+ori_button3_pos = (ori_button_off[0], ori_button_off[1])
+ori_button3 = visual.Rect(window, width=ori_button_dims[0], height=ori_button_dims[1], pos=ori_button3_pos)
+ori_button3_text = visual.TextStim(window, text='Plaid', height=ori_text_height, pos=ori_button3_pos)
 
-# Interval buttons:
-
-## Handy routines:
-
-
+## Confidence response buttons:
 def conf_draw():
     # Confidence rendering:
     conf_text.draw()
@@ -185,32 +216,134 @@ def conf_draw():
     if len(num_keys_) > 0:
         if '1' in num_keys_:
             print('confidence response: 1')
-            resp_conf = 1
+            resp_conf_ = 1
             conf_button1.lineColor = 'blue'
             conf_button1.draw()
         elif '2' in num_keys_:
             print('confidence response: 2')
-            resp_conf = 2
+            resp_conf_ = 2
             conf_button2.lineColor = 'blue'
             conf_button2.draw()
         elif '3' in num_keys_:
             print('confidence response: 3')
-            resp_conf = 3
+            resp_conf_ = 3
             conf_button3.lineColor = 'blue'
             conf_button3.draw()
         elif 'escape' in num_keys_:
             exit_routine()
-        return resp_conf
+        return resp_conf_
     else:
         return 0
 
-
-# Resetting the confidence response buttons:
 def conf_reset():
     conf_button1.lineColor = 'white'
     conf_button2.lineColor = 'white'
     conf_button3.lineColor = 'white'
 
+## Interval response buttons:
+def int_draw():
+    # Confidence rendering:
+    int_text.draw()
+    int_button1.draw()
+    int_button1_text.draw()
+    int_button2.draw()
+    int_button2_text.draw()
+    # Monitoring for key presses:
+    num_keys_ = event.getKeys(keyList=['1', '2', 'escape'])
+    if len(num_keys_) > 0:
+        if '1' in num_keys_:
+            print('interval response: 1')
+            resp_int_ = 1
+            int_button1.lineColor = 'red'
+            int_button1.draw()
+        elif '2' in num_keys_:
+            print('interval response: 2')
+            resp_int_ = 2
+            int_button2.lineColor = 'red'
+            int_button2.draw()
+        elif 'escape' in num_keys_:
+            exit_routine()
+        return resp_int_
+    else:
+        return 0
+
+# Resetting the confidence response buttons:
+def int_reset():
+    int_button1.lineColor = 'white'
+    int_button2.lineColor = 'white'
+
+## Number of stimuli response buttons:
+def num_draw():
+    # Confidence rendering:
+    num_text.draw()
+    num_button1.draw()
+    num_button1_text.draw()
+    num_button2.draw()
+    num_button2_text.draw()
+    # Monitoring for key presses:
+    num_keys_ = event.getKeys(keyList=['1', '2', 'escape'])
+    if len(num_keys_) > 0:
+        if '1' in num_keys_:
+            print('number response: 1')
+            resp_num_ = 1
+            num_button1.lineColor = 'red'
+            num_button1.draw()
+        elif '2' in num_keys_:
+            print('number response: 2')
+            resp_num_ = 2
+            num_button2.lineColor = 'red'
+            num_button2.draw()
+        elif 'escape' in num_keys_:
+            exit_routine()
+        return resp_num_
+    else:
+        return 0
+
+# Resetting the number response buttons:
+def num_reset():
+    num_button1.lineColor = 'white'
+    num_button2.lineColor = 'white'
+
+## Orientation response buttons:
+def ori_draw():
+    # Button rendering:
+    ori_text.draw()
+    ori_button1.draw()
+    ori_button1_text.draw()
+    ori_button2.draw()
+    ori_button2_text.draw()
+    ori_button3.draw()
+    ori_button3_text.draw()
+    # Monitoring for key presses:
+    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'down', 'escape'])
+    if len(arrow_keys_) > 0:
+        if '1' in arrow_keys_:
+            print('orientation response: Left')
+            resp_ori_ = 'L'
+            ori_button1.lineColor = 'red'
+            ori_button1.draw()
+        elif '2' in arrow_keys_:
+            print('orientation response: Right')
+            resp_ori_ = 'R'
+            ori_button2.lineColor = 'red'
+            ori_button2.draw()
+        elif '3' in arrow_keys_:
+            print('orientation response: Plaid')
+            resp_ori_ = 'P'
+            ori_button3.lineColor = 'red'
+            ori_button3.draw()
+        elif 'escape' in arrow_keys_:
+            exit_routine()
+        return resp_ori_
+    else:
+        return 0
+
+def ori_reset():
+    ori_button1.lineColor = 'white'
+    ori_button2.lineColor = 'white'
+    ori_button3.lineColor = 'white'
+
+## Handy routines:
 
 # This is done at every frame update, regardless of trial phase, so predefining:
 def frame_routine():
@@ -220,10 +353,8 @@ def frame_routine():
         exit_routine()
     return flip_time_
 
-
 # Also no variation across frames, but only available upon call, which is made only in key registering phase.
 def exit_routine():
-
     # Say goodbye:
     window.flip()
     instr_text_stim.setText('    Finished!\nRecording data...')
@@ -246,7 +377,6 @@ def exit_routine():
     # Close the graphics
     window.close()
     core.quit()
-
 
 
 ## Initiating the trial loop
@@ -350,7 +480,7 @@ for trial in trials:
         # Iterating through interval frames:
         for cur_frame in range(interval_frames):
             flip_time = frame_routine()
-            button.draw()
+            box.draw()
 
             # stimulus presentation
             if cur_interval == stim_interval_second:
