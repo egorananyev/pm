@@ -41,46 +41,38 @@ for(cur_subj in subjs){
     ds = rbind(ds, cur_ds)
   }
 }
-rm(blocks, cur_block, cur_subj, cur_ds, cur_subj_dir)
+rm(blocks, cur_block, cur_subj, cur_ds, cur_subj_dir, shocky)
 head(ds)
 ```
 
-# Summary stats
-```{r}
-print(colnames(ds))  # debug
-# Number of confidence == 0
-ds_conf = ds
-ds_conf$Contrast = paste(ds$stim1_c, ds$stim2_c, sep='\n')
-ds_conf = ddply(ds_conf, .(subj, resp_int_conf, Contrast), summarise, 
-                count=length(resp_int_conf))
-p = ggplot(data=ds_conf, aes(x=Contrast, y=count, fill=factor(resp_int_conf))) + 
-  geom_bar(stat='identity') + labs(fill='Confidence')
-print(p)
-```
-
-# Better condition names
-```{r}
-ds$Cond = 'NoBlink'
-ds$Cond[ds$cond=='a'] = 'Artificial'
-ds$Cond[ds$cond=='v'] = 'Prompted'
-ds$CondFull = 'No Blink'
-ds$CondFull[ds$cond=='a'] = 'Artificial Blink'
-ds$CondFull[ds$cond=='v'] = 'Prompted Blink'
-```
-
 # Visualization
+
+## Confidence ratings
+```{r}
+# ```{r, fig.width=3, fig.height=2.5}
+# print(colnames(ds))  # debug
+ds_conf = ds
+ds_conf = ddply(ds_conf, .(subj, resp_int_conf, stim1_c, stim2_c), summarise, 
+                count=length(resp_int_conf))
+p = ggplot(data=ds_conf, aes(x=factor(stim1_c), y=count, fill=factor(resp_int_conf))) + 
+  facet_grid(cols=vars(stim2_c)) + geom_bar(stat='identity') + 
+  labs(fill='Confidence', x='Stimulus Contrasts') + theme(legend.position='top')
+print(p)
+rm(ds_conf, p)
+```
+
 ## Cueing
-```{r, fig.width=3, fig.height=2.5}
+```{r}
 for(cur_subj in subjs){
-    for(cur_cond in c('a','c','v')){
-      cur_ds = ds[ds$cond==cur_cond & ds$subj==as.numeric(substring(cur_subj, 6, 7)),]
-      cur_cond_name = unique(cur_ds$CondFull)
-      p = ggplot(data=cur_ds, aes(x=factor(cue_valid), y=rt))
-      p = p + theme_bw() + ylim(short_rt_cutoff, .9)
-      p = p + geom_dotplot(binaxis='y', stackdir='center', dotsize=1, binwidth=.02)
-      p = p + ggtitle(paste('cond', cur_cond_name))
-      suppressWarnings(plot(p))
-    }
+  for(cur_cond in c('a','c','v')){
+    cur_ds = ds[ds$cond==cur_cond & ds$subj==as.numeric(substring(cur_subj, 6, 7)),]
+    cur_cond_name = unique(cur_ds$CondFull)
+    p = ggplot(data=cur_ds, aes(x=factor(cue_valid), y=rt))
+    p = p + theme_bw() + ylim(short_rt_cutoff, .9)
+    p = p + geom_dotplot(binaxis='y', stackdir='center', dotsize=1, binwidth=.02)
+    p = p + ggtitle(paste('cond', cur_cond_name))
+    suppressWarnings(plot(p))
+  }
 }
 ```
 
