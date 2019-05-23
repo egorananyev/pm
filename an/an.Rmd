@@ -1,7 +1,7 @@
 ---
-title: "[eb1] Measurement - Quality Control"
+title: "[pm1] Visualization & Analysis"
 author: "Egor Ananyev"
-date: "2019-01-04"
+date: "2019-05-22"
 output:
     html_document:
         toc: true
@@ -20,13 +20,12 @@ code.r{
 
 # Data input and parsing
 ```{r set-options, message=F}
+shocky = F
 options(width=100)
-shocky = T
+# options(width=90)  # temp
 library(plyr)
-extrafont::loadfonts(device='win')
-font_import(paths = NULL, recursive = TRUE, prompt = TRUE,pattern = NULL)
 library(ggplot2)
-dropbox_dir='/Users/Egor/Dropbox/'
+if(shocky){ dropbox_dir='/Users/Egor/Dropbox' }else{ dropbox_dir='/Users/egora/Dropbox' }
 data_dir = paste(dropbox_dir, 'Projects/pm/data/pm1/', sep='/')
 subjs = dir(data_dir, pattern='subj-')
 ds = data.frame()
@@ -42,95 +41,138 @@ for(cur_subj in subjs){
   }
 }
 rm(blocks, cur_block, cur_subj, cur_ds, cur_subj_dir, shocky)
+# Useful columns
+ds$int_corr = as.numeric(ds$stim_int == ds$resp_int)
+# Printing to screen
 head(ds)
 ```
 
-# Visualization
-
-## Confidence ratings
+# Visualization functions
 ```{r}
-# ```{r, fig.width=3, fig.height=2.5}
+# A function for plotting y as a function of (afo) contrast of the two stimuli:
+afo_contrast = function(df, fill_str, fill_lab){
+  df[,'stim1_c'] = as.factor(df[,'stim1_c'])
+  df[,'stim2_c'] = as.factor(df[,'stim2_c'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='stim1_c', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim2_c', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Stimulus Contrasts', y='Trial Count') + theme(legend.position='top')
+  print(p)
+}
+# Count as a function of SOA:
+afo_soa = function(df, fill_str, fill_lab){
+  df[,'soa'] = as.factor(df[,'soa'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
+    geom_bar(stat='identity') + labs(fill=fill_lab, x='Stimulus Onset Asynchrony',
+                                     y='Trial Count') + theme(legend.position='top')
+  print(p)
+}
+# Count as a function of angle difference:
+afo_angle = function(df, fill_str, fill_lab){
+  df[,'angle_diff'] = as.factor(df[,'angle_diff'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='angle_diff', y='count', fill=fill_str)) + 
+    geom_bar(stat='identity') + labs(fill=fill_lab, x='Angle Difference',
+                                     y='Trial Count') + theme(legend.position='top')
+  print(p)
+}
+# Count as a function of SOA and angle difference:
+afo_soa_angle = function(df, fill_str, fill_lab){
+  df[,'soa'] = as.factor(df[,'soa'])
+  df[,'angle_diff'] = as.factor(df[,'angle_diff'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('angle_diff', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='SOA x Angle Difference', y='Trial Count') + 
+    theme(legend.position='top')
+  print(p)
+}
+afo_angle_soa = function(df, fill_str, fill_lab){
+  df[,'soa'] = as.factor(df[,'soa'])
+  df[,'angle_diff'] = as.factor(df[,'angle_diff'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='angle_diff', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('soa', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Angle Difference x SOA', y='Trial Count') + 
+    theme(legend.position='top')
+  print(p)
+}
+afo_angles = function(df, fill_str, fill_lab){
+  df[,'soa'] = as.factor(df[,'soa'])
+  df[,'stim1_ori'] = as.factor(df[,'stim1_ori'])
+  df[,'stim2_ori'] = as.factor(df[,'stim2_ori'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim1_ori', 'stim2_ori')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='SOA x Stimulus Angles', y='Trial Count') + 
+    theme(legend.position='top')
+  print(p)
+}
+```
+
+# Visibility
+
+## Visibility ~ Contrast
+```{r, fig.width=9.5, fig.height=2.5}
 # print(colnames(ds))  # debug
-ds_conf = ds
-ds_conf = ddply(ds_conf, .(subj, resp_int_conf, stim1_c, stim2_c), summarise, 
+ds_conf = ddply(ds, .(subj, resp_int_conf, stim1_c, stim2_c), summarise, 
                 count=length(resp_int_conf))
-p = ggplot(data=ds_conf, aes(x=factor(stim1_c), y=count, fill=factor(resp_int_conf))) + 
-  facet_grid(cols=vars(stim2_c)) + geom_bar(stat='identity') + 
-  labs(fill='Confidence', x='Stimulus Contrasts') + theme(legend.position='top')
-print(p)
-rm(ds_conf, p)
+afo_contrast(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, stim1_c, stim2_c), summarise, count=length(int_corr))
+afo_contrast(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
-## Cueing
-```{r}
-for(cur_subj in subjs){
-  for(cur_cond in c('a','c','v')){
-    cur_ds = ds[ds$cond==cur_cond & ds$subj==as.numeric(substring(cur_subj, 6, 7)),]
-    cur_cond_name = unique(cur_ds$CondFull)
-    p = ggplot(data=cur_ds, aes(x=factor(cue_valid), y=rt))
-    p = p + theme_bw() + ylim(short_rt_cutoff, .9)
-    p = p + geom_dotplot(binaxis='y', stackdir='center', dotsize=1, binwidth=.02)
-    p = p + ggtitle(paste('cond', cur_cond_name))
-    suppressWarnings(plot(p))
-  }
-}
+## Visibility ~ SOA
+```{r, fig.width=3.5, fig.height=2.5}
+ds_conf = ddply(ds, .(subj, resp_int_conf, soa), summarise, count=length(resp_int_conf))
+afo_soa(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, soa), summarise, count=length(int_corr))
+afo_soa(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
-```{r, fig.width=3, fig.height=2.5}
-for(cur_subj in subjs){
-    for(cur_cond in c('a','c','v')){
-      cur_ds = ds[ds$cond==cur_cond & ds$subj==as.numeric(substring(cur_subj, 6, 7)),]
-      cur_cond_name = unique(cur_ds$CondFull)
-      p = ggplot(data=cur_ds, aes(x=rt, colour=factor(cue_valid))) + geom_density() +
-        theme(legend.position = 'bottom') + ggtitle(paste('cond', cur_cond_name))
-      plot(p)
-    }
-}
+## Visibility ~ Angle Difference
+```{r, fig.width=2.5, fig.height=2.5}
+ds_conf = ddply(ds, .(subj, resp_int_conf, angle_diff), summarise, count=length(resp_int_conf))
+afo_angle(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, angle_diff), summarise, count=length(int_corr))
+afo_angle(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
-# Analyses
-```{r}
-# Reordering levels of Condition variable, such that No Blink condition is the reference:
-ds$Cond <- factor(ds$Cond, c('NoBlink','Artificial','Prompted')) #this works for lm
-summary(lm(rt~Cond*cue_valid, data=ds))  # switch to lme4 for mixed models
-# 1 / generalTestBF(rt ~ cond*cue_valid, data=ds, whichModels='top')
+## Visibility ~ SOA x Angle
+```{r, fig.width=4.5, fig.height=2.5}
+ds_conf = ddply(ds, .(subj, resp_int_conf, soa, angle_diff), summarise, 
+                count=length(resp_int_conf))
+afo_soa_angle(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, soa, angle_diff), summarise, count=length(int_corr))
+afo_soa_angle(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
-# Predicting necessary N
-```{r}
-obt_eff = 0.026
-obt_se = 0.015
+## Visibility ~ Angle x SOA
+```{r, fig.width=4.5, fig.height=2.5}
+ds_conf = ddply(ds, .(subj, resp_int_conf, soa, angle_diff), summarise, 
+                count=length(resp_int_conf))
+afo_angle_soa(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, soa, angle_diff), summarise, count=length(int_corr))
+afo_angle_soa(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
+```
 
-# Function for retrieving the BFs associated with different Ns:
-bf_N = function(base_eff, base_ssd, tails=2){  # base_ssd = the sum of squared difference
-  # BF_U(LL, UL, meanobtained, semobtained, dfobtained)
-  bfs = c()
-  for(cur_N in 2:40){
-    if(tails==1)  # one-tailed
-      { bfs = c(bfs, BF_U(0, .03, base_eff, base_ssd/sqrt(cur_N), cur_N-1)) }
-    else  # two-tailed
-      { bfs = c(bfs, BF_U(-0.03, .03, base_eff, base_ssd/sqrt(cur_N), cur_N-1)) }
-  }
-  # print(bfs)
-  return(bfs)
-}
+# Number judgment
 
-# Function for retrieving the minimum N at which a significant BF is achieved
-# (assuming alternative is true):
-min_N = function(eff, ssd, tails=1){ 
-  min(which(bf_N(eff, ssd, tails)>3))+1
-}
+## Number ~ Angle x SOA (visible)
+```{r, fig.width=4.5, fig.height=2.5}
+ds_num = ddply(ds[ds$resp_int_conf>1,], .(subj, resp_num, soa, angle_diff), summarise, 
+               count=length(resp_num))
+afo_angle_soa(df=ds_num, fill_str='resp_num', fill_lab='Stimulus Number Response')
+```
 
-## At which N does the BF achieve significance?
+# Angle judgment
 
-# At first, testing one-tailed hypothesis:
-min_N(obt_eff, obt_se * 1.0)  # at SSD of one (assuming the least noisy SE)
-min_N(obt_eff, obt_se * 1.5)  # at SSD 1.5 times the minimum SSD
-min_N(obt_eff, obt_se * 2.0)  # twice the minimum SSD
-
-# Testing a two-tailed hypothesis:
-# At which N does the BF achieve significance?
-min_N(obt_eff, obt_se * 1.0, 2)  # at SSD of one (assuming the least noisy SE)
-min_N(obt_eff, obt_se * 1.5, 2)  # at SSD 1.5 times the minimum SSD
-min_N(obt_eff, obt_se * 2.0, 2)  # twice the minimum SSD
+## Angle ~ Angles x SOA (visible)
+```{r, fig.width=6.5, fig.height=4.5}
+ds_ori = ddply(ds[ds$resp_int_conf>1,], .(subj, resp_ori, soa, stim1_ori, stim2_ori), summarise, 
+               count=length(resp_ori))
+ds_ori$stim1_ori = paste('First =', ds_ori$stim1_ori)
+ds_ori$stim2_ori = paste('Second =', ds_ori$stim2_ori)
+afo_angles(df=ds_ori, fill_str='resp_ori', fill_lab='Angle Response')
 ```

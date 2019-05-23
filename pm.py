@@ -399,7 +399,7 @@ def exit_routine():
         data_columns = ['exp_name', 'frame_rate', 'stim_dur', 'beg_buff', 'end_buff', 'wiggle',  # experiment specs
                         'subj', 'block', 'trial_id',  # log info
                         'soa', 'angle_diff', 'stim1_ori', 'stim2_ori', 'stim1_c', 'stim2_c',  # stim info
-                        'stim_interval', 'jitter',  # randomized variables
+                        'stim_int', 'jitter',  # randomized variables
                         'resp_int', 'resp_num', 'resp_ori',  # subj resp
                         'resp_int_conf', 'resp_num_conf', 'resp_ori_conf']  # subj confidence
         pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
@@ -440,7 +440,7 @@ for trial in trials:
 
     # Randomizing whether the stimuli will appear in the first or second interval:
     stim_resp_int_second = np.random.randint(2)  # 0 if 1st and 1 if 2nd - used in the loop check (BOOL is faster)
-    stim_interval = stim_resp_int_second + 1  # adding 1 to record
+    stim_int = stim_resp_int_second + 1  # adding 1 to record
 
     # Timing variables.
 
@@ -496,13 +496,13 @@ for trial in trials:
     print('stim1_ori = ' + str(stim1_ori) + ' stim2_ori = ' + str(stim2_ori))
 
     # Print trial specifics to screen:
-    print('interval=' + str(stim_interval) + ' soa=' + str(int(soa)) + ' diff=' + str(angle_diff) +
+    print('int=' + str(stim_int) + ' soa=' + str(int(soa)) + ' diff=' + str(angle_diff) +
           ' c1=' + str(stim1_c) + ' c2=' + str(stim2_c))
 
     ## Presentation phase
 
     # Iterating through the intervals:
-    for cur_interval in [0, 1]:
+    for cur_int in [0, 1]:
 
         # Fixation:
         for cur_fix_frame in range(fix_dur):
@@ -517,7 +517,7 @@ for trial in trials:
             box.draw()
 
             # stimulus presentation
-            if cur_interval == stim_resp_int_second:
+            if cur_int == stim_resp_int_second:
 
                 # first stimulus time window:
                 if cur_frame in stim1_twin:
@@ -639,7 +639,7 @@ for trial in trials:
                                      'soa': soa, 'angle_diff': angle_diff,
                                      'stim1_ori': stim1_ori, 'stim2_ori': stim2_ori,
                                      'stim1_c': stim1_c, 'stim2_c': stim2_c,
-                                     'stim_interval': stim_interval, 'jitter': jitter,
+                                     'stim_int': stim_int, 'jitter': jitter,
                                      'resp_int': resp_int, 'resp_num': resp_num, 'resp_ori': resp_ori,
                                      'resp_int_conf': resp_int_conf,
                                      'resp_num_conf': resp_num_conf,
