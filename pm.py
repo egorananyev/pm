@@ -87,14 +87,13 @@ else:
 cond_instr = 'Please do the following:\n' \
              '- look at the fixation cross at all times\n' \
              '- your targets are gratings with left or right tilt\n' \
-             '- they may appear either on the left or right\n' \
+             '- they may appear either on the left or right of the fixation\n' \
+             '- there may be two, one, or *no* targets in a trial\n' \
              '- they might appear simultaneously or in sequence\n' \
              '- at the end of each trial, you will be asked report the following:\n' \
-             '    1) the location with the gratings (left/right);\n' \
-             '    2) whether they appeared simultaneously or in sequence;\n' \
-             '    3) the tilts of those gratings (left/right/both);\n' \
-             '- you will also be asked about your confidence of each judgment\n' \
-             '- if you are unsure, please guess and indicate low confidence\n' \
+             '    1) the number of targets (0/1/2);\n' \
+             '    2) the location with the target(s) (left/right);\n' \
+             '    3) the tilt of the target(s) (left/right/both);\n' \
              '- remember: two tilts *always means* two objects'
 
 ## Input and output
@@ -159,20 +158,7 @@ stim2 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=
 box = visual.Rect(window, width=5, height=5)
 
 # Response buttons & text:
-# Confidence:
 text_size = .6
-conf_text = visual.TextStim(window, text='confidence?', height=text_size, pos=[0, -1.3])
-conf_button_dims = [2.3, .7]
-conf_button_off = [2.5, -2.1]
-conf_button1_pos = (-conf_button_off[0], conf_button_off[1])
-conf_button1 = visual.Rect(window, width=conf_button_dims[0], height=conf_button_dims[1], pos=conf_button1_pos)
-conf_button1_text = visual.TextStim(window, text='1=none', height=text_size, pos=conf_button1_pos)
-conf_button2_pos = (0, conf_button_off[1])
-conf_button2 = visual.Rect(window, width=conf_button_dims[0], height=conf_button_dims[1], pos=conf_button2_pos)
-conf_button2_text = visual.TextStim(window, text='2=some', height=text_size, pos=conf_button2_pos)
-conf_button3_pos = (conf_button_off[0], conf_button_off[1])
-conf_button3 = visual.Rect(window, width=conf_button_dims[0], height=conf_button_dims[1], pos=conf_button3_pos)
-conf_button3_text = visual.TextStim(window, text='3=full', height=text_size, pos=conf_button3_pos)
 
 # Button dimensions and positions:
 button_dim = [3, 1.2]
@@ -195,12 +181,21 @@ text1_pos = (-button_off[0], button_off[1]-arrow_y_off+.1)
 text2_pos = (0, button_off[1]-arrow_y_off+.1)
 text3_pos = (button_off[0], button_off[1]-arrow_y_off+.1)
 
+# Number:
+resp_num_text = visual.TextStim(window, text='number of targets?', height=text_size, pos=[0, 1.2])
+resp_num_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
+resp_num_button1_text = visual.TextStim(window, text='none', height=text_size, pos=text1_pos)
+resp_num_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button2_pos)
+resp_num_button2_text = visual.TextStim(window, text='one', height=text_size, pos=text2_pos)
+resp_num_button3 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
+resp_num_button3_text = visual.TextStim(window, text='two', height=text_size, pos=text3_pos)
+
 # Orientation:
 resp_ori_text = visual.TextStim(window, text='pattern?', height=text_size, pos=[0, 1.2])
 resp_ori_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
 resp_ori_button1_text = visual.TextStim(window, text='left tilt', height=text_size, pos=text1_pos)
 resp_ori_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button2_pos)
-resp_ori_button2_text = visual.TextStim(window, text='both', height=text_size, pos=text2_pos)
+resp_ori_button2_text = visual.TextStim(window, text='both tilts', height=text_size, pos=text2_pos)
 resp_ori_button3 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
 resp_ori_button3_text = visual.TextStim(window, text='right tilt', height=text_size, pos=text3_pos)
 
@@ -211,52 +206,50 @@ resp_loc_button1_text = visual.TextStim(window, text='left', height=text_size, p
 resp_loc_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
 resp_loc_button2_text = visual.TextStim(window, text='right', height=text_size, pos=text3_pos)
 
-# Number:
-resp_num_text = visual.TextStim(window, text='same time or in sequence?', height=text_size, pos=[0, 1.2])
-resp_num_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
-resp_num_button1_text = visual.TextStim(window, text='same time', height=text_size, pos=text1_pos)
-resp_num_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
-resp_num_button2_text = visual.TextStim(window, text='sequential', height=text_size, pos=text3_pos)
-
-
-## Confidence response buttons:
-def conf_draw():
+## Number of stimuli response buttons:
+def resp_num_draw():
     # Confidence rendering:
-    conf_text.draw()
-    conf_button1.draw()
-    conf_button1_text.draw()
-    conf_button2.draw()
-    conf_button2_text.draw()
-    conf_button3.draw()
-    conf_button3_text.draw()
+    resp_num_text.draw()
+    resp_num_button1.draw()
+    button1_arrow.draw()
+    resp_num_button1_text.draw()
+    resp_num_button2.draw()
+    button2_arrow.draw()
+    resp_num_button2_text.draw()
+    resp_num_button3.draw()
+    button3_arrow.draw()
+    resp_num_button3_text.draw()
+
+def resp_num_monitor():
     # Monitoring for key presses:
-    num_keys_ = event.getKeys(keyList=['1', '2', '3', 'escape'])
-    if len(num_keys_) > 0:
-        if '1' in num_keys_:
-            print('confidence: 1')
-            resp_conf_ = 1
-            conf_button1.lineColor = 'blue'
-            conf_button1.draw()
-        elif '2' in num_keys_:
-            print('confidence: 2')
-            resp_conf_ = 2
-            conf_button2.lineColor = 'blue'
-            conf_button2.draw()
-        elif '3' in num_keys_:
-            print('confidence: 3')
-            resp_conf_ = 3
-            conf_button3.lineColor = 'blue'
-            conf_button3.draw()
-        elif 'escape' in num_keys_:
+    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'down', 'escape'])
+    if len(arrow_keys_) > 0:
+        if 'left' in arrow_keys_:
+            print('number response: 0', end='   ')
+            resp_stim_num_ = 0
+            resp_num_button1.lineColor = 'red'
+            resp_num_button1.draw()
+        elif 'down' in arrow_keys_:
+            print('number response: 1', end='   ')
+            resp_stim_num_ = 1
+            resp_num_button2.lineColor = 'red'
+            resp_num_button2.draw()
+        elif 'right' in arrow_keys_:
+            print('number response: 2', end='   ')
+            resp_stim_num_ = 2
+            resp_num_button3.lineColor = 'red'
+            resp_num_button3.draw()
+        elif 'escape' in arrow_keys_:
             exit_routine()
-        return resp_conf_
+        return resp_stim_num_
     else:
         return 0
 
-def conf_reset():
-    conf_button1.lineColor = 'white'
-    conf_button2.lineColor = 'white'
-    conf_button3.lineColor = 'white'
+# Resetting the number response buttons:
+def resp_num_reset():
+    resp_num_button1.lineColor = 'white'
+    resp_num_button2.lineColor = 'white'
+    resp_num_button3.lineColor = 'white'
 
 ## Location response buttons:
 def resp_loc_draw():
@@ -289,62 +282,27 @@ def resp_loc_monitor():
     else:
         return 0
 
-# Resetting the confidence response buttons:
+# Resetting the response buttons:
 def resp_loc_reset():
     resp_loc_button1.lineColor = 'white'
     resp_loc_button2.lineColor = 'white'
 
-## Number of stimuli response buttons:
-def resp_num_draw():
-    # Confidence rendering:
-    resp_num_text.draw()
-    resp_num_button1.draw()
-    button1_arrow.draw()
-    resp_num_button1_text.draw()
-    resp_num_button2.draw()
-    button3_arrow.draw()
-    resp_num_button2_text.draw()
-
-def resp_num_monitor():
-    # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'escape'])
-    if len(arrow_keys_) > 0:
-        if 'left' in arrow_keys_:
-            print('number response: 1', end='   ')
-            resp_stim_num_ = 1
-            resp_num_button1.lineColor = 'red'
-            resp_num_button1.draw()
-        elif 'right' in arrow_keys_:
-            print('number response: 2', end='   ')
-            resp_stim_num_ = 2
-            resp_num_button2.lineColor = 'red'
-            resp_num_button2.draw()
-        elif 'escape' in arrow_keys_:
-            exit_routine()
-        return resp_stim_num_
-    else:
-        return 0
-
-# Resetting the number response buttons:
-def resp_num_reset():
-    resp_num_button1.lineColor = 'white'
-    resp_num_button2.lineColor = 'white'
-
 ## Orientation response buttons:
-def resp_ori_draw():
+def resp_ori_draw(resp_num_):
     # Button rendering:
     resp_ori_text.draw()
     resp_ori_button1.draw()
     button1_arrow.draw()
     resp_ori_button1_text.draw()
-    resp_ori_button2.draw()
-    button2_arrow.draw()
-    resp_ori_button2_text.draw()
+    if resp_num_ == 2:
+        resp_ori_button2.draw()
+        button2_arrow.draw()
+        resp_ori_button2_text.draw()
     resp_ori_button3.draw()
     button3_arrow.draw()
     resp_ori_button3_text.draw()
 
-def resp_ori_monitor():
+def resp_ori_monitor(resp_num_):
     # Monitoring for key presses:
     arrow_keys_ = event.getKeys(keyList=['left', 'down', 'right', 'escape'])
     if len(arrow_keys_) > 0:
@@ -353,7 +311,7 @@ def resp_ori_monitor():
             resp_ori_ = 'L'
             resp_ori_button1.lineColor = 'red'
             resp_ori_button1.draw()
-        elif 'down' in arrow_keys_:
+        elif 'down' in arrow_keys_ and resp_num_ == 2:
             print('orientation response: Both', end='   ')
             resp_ori_ = 'B'
             resp_ori_button2.lineColor = 'red'
@@ -369,9 +327,10 @@ def resp_ori_monitor():
     else:
         return 0
 
-def resp_ori_reset():
+def resp_ori_reset(resp_num_):
     resp_ori_button1.lineColor = 'white'
-    resp_ori_button2.lineColor = 'white'
+    if resp_num_ == 2:
+        resp_ori_button2.lineColor = 'white'
     resp_ori_button3.lineColor = 'white'
 
 ## Handy routines:
@@ -410,8 +369,7 @@ def exit_routine():
                         'subj', 'block', 'trial_id',  # log info
                         'soa', 'angle_diff', 'stim1_ori', 'stim2_ori', 'stim1_c', 'stim2_c',  # stim info
                         'stim_loc', 'jitter',  # randomized variables
-                        'resp_loc', 'resp_num', 'resp_ori',  # subj resp
-                        'resp_loc_conf', 'resp_num_conf', 'resp_ori_conf']  # subj confidence
+                        'resp_num', 'resp_loc', 'resp_ori']  # subj resp
         pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
         print('\noutput file path is ' + out_file_path)
 
@@ -444,9 +402,6 @@ for trial in trials:
     resp_loc_given = False
     resp_num_given = False
     resp_ori_given = False
-    resp_loc_conf = 0
-    resp_num_conf = 0
-    resp_ori_conf = 0
 
     # Randomizing whether the stimuli will appear on the left or right:
     stim_loc_R = np.random.randint(2)  # 0 if Left and 1 if Right - used in the loop check (BOOL is faster)
@@ -524,37 +479,11 @@ for trial in trials:
         print('\n', end='')
 
     ## Response phase:
-
-    # Interval response:
-    conf_reset()
-    resp_loc = 0
-    event.clearEvents()
-    while not resp_loc_given or resp_loc_conf == 0:
-
-        window.flip()
-
-        # Interval response:
-        resp_loc_draw()
-        if not resp_loc_given:
-            if resp_loc == 0:
-                resp_loc = resp_loc_monitor()
-            else:
-                resp_loc_given = True
-                event.clearEvents()
-
-        # Confidence response:
-        if resp_loc_given:
-            resp_loc_conf = conf_draw()
-
-    resp_loc_reset()
-    window.flip()
-    core.wait(resp_feedback_wait)
-    conf_reset()
     event.clearEvents()
 
     # Stimulus number response:
     resp_num = 0
-    while not resp_num_given or resp_num_conf == 0:
+    while not resp_num_given:
 
         window.flip()
 
@@ -567,42 +496,52 @@ for trial in trials:
                 resp_num_given = True
                 event.clearEvents()
 
-        # Confidence response:
-        if resp_num_given:
-            print('bingo')
-            resp_num_conf = 9
-            # resp_num_conf = conf_draw()
-
     resp_num_reset()
     window.flip()
     core.wait(resp_feedback_wait)
-    conf_reset()
     event.clearEvents()
+
+    # Location response:
+    resp_loc = 0
+    if resp_num > 0:
+        while not resp_loc_given:
+
+            window.flip()
+
+            # Interval response:
+            resp_loc_draw()
+            if not resp_loc_given:
+                if resp_loc == 0:
+                    resp_loc = resp_loc_monitor()
+                else:
+                    resp_loc_given = True
+                    event.clearEvents()
+
+        resp_loc_reset()
+        window.flip()
+        core.wait(resp_feedback_wait)
+        event.clearEvents()
 
     # Orientation response:
     resp_ori = 0
-    while not resp_ori_given or resp_ori_conf == 0:
+    if resp_num > 0:
+        while not resp_ori_given:
 
+            window.flip()
+
+            # Stimulus number response:
+            resp_ori_draw(resp_num)
+            if not resp_ori_given:
+                if resp_ori == 0:
+                    resp_ori = resp_ori_monitor(resp_num)
+                else:
+                    resp_ori_given = True
+                    event.clearEvents()
+
+        resp_ori_reset(resp_num)
         window.flip()
-
-        # Stimulus number response:
-        resp_ori_draw()
-        if not resp_ori_given:
-            if resp_ori == 0:
-                resp_ori = resp_ori_monitor()
-            else:
-                resp_ori_given = True
-                event.clearEvents()
-
-        # Confidence response:
-        if resp_ori_given:
-            resp_ori_conf = 9
-            # resp_ori_conf = conf_draw()
-
-    resp_ori_reset()
-    window.flip()
-    core.wait(resp_feedback_wait)
-    event.clearEvents()
+        core.wait(resp_feedback_wait)
+        event.clearEvents()
 
     ## Trial termination feedback:
     instr_text_stim.setText('press spacebar to continue')
@@ -622,10 +561,7 @@ for trial in trials:
                                      'soa': soa, 'stim1_ori': stim1_ori, 'stim2_ori': stim2_ori,
                                      'stim1_c': stim1_c, 'stim2_c': stim2_c,
                                      'stim_loc': stim_loc, 'jitter': jitter,
-                                     'resp_loc': resp_loc, 'resp_num': resp_num, 'resp_ori': resp_ori,
-                                     'resp_loc_conf': resp_loc_conf,
-                                     'resp_num_conf': resp_num_conf,
-                                     'resp_ori_conf': resp_ori_conf}
+                                     'resp_num': resp_num, 'resp_loc': resp_loc, 'resp_ori': resp_ori}
 
 # Finishing the experiment
 exit_routine()
