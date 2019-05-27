@@ -20,8 +20,11 @@ code.r{
 
 # Data input and parsing
 ```{r set-options, message=F}
-shocky = F
 options(width=100)
+```
+
+```{r}
+shocky = F
 # options(width=90)  # temp
 library(plyr)
 library(ggplot2)
@@ -43,8 +46,27 @@ for(cur_subj in subjs){
 rm(blocks, cur_block, cur_subj, cur_ds, cur_subj_dir, shocky)
 # Useful columns
 ds$int_corr = as.numeric(ds$stim_int == ds$resp_int)
+ds$int_corr_ = 'Correct'
+ds$int_corr_[ds$int_corr==0] = 'Incorrect'
+ds$int_corr_ <- factor(ds$int_corr_, c('Incorrect','Correct'))
+ds$resp_int_conf_ = 'None'
+ds$resp_int_conf_[ds$resp_int_conf==2] = 'Some'
+ds$resp_int_conf_[ds$resp_int_conf==3] = 'Full'
+ds$soa_ = paste0('SOA=', ds$soa)
+ds$resp_num_ = 'Simultaneous'
+ds$resp_num_[ds$resp_num==2] = 'Sequential'
+ds$resp_num_ <- factor(ds$resp_num_, c('Simultaneous','Sequential'))
+resp_num_lab = 'Order Response'
+ds$angle_diff_ = 'Same'
+ds$angle_diff_[ds$angle_diff==1] = 'Different'
+ds$angle_diff_ <- factor(ds$angle_diff_, c('Same','Different'))
+ds$resp_ori_ = 'One'
+ds$resp_ori_[ds$resp_ori=='B'] = 'Two'
+resp_ori_lab = 'Angle Response'
 # Printing to screen
 head(ds)
+# 'Visible' trials only:
+ds_vis = ds[ds$resp_int_conf>1,]
 ```
 
 # Visualization functions
@@ -56,7 +78,8 @@ afo_contrast = function(df, fill_str, fill_lab){
   df[,fill_str] = as.factor(df[,fill_str])
   p = ggplot(data=df, aes_string(x='stim1_c', y='count', fill=fill_str)) + 
     facet_grid(reformulate('stim2_c', '.')) + geom_bar(stat='identity') + 
-    labs(fill=fill_lab, x='Stimulus Contrasts', y='Trial Count') + theme(legend.position='top')
+    labs(fill=fill_lab, x='Stimulus Contrasts', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
   print(p)
 }
 # Count as a function of SOA:
@@ -65,48 +88,50 @@ afo_soa = function(df, fill_str, fill_lab){
   df[,fill_str] = as.factor(df[,fill_str])
   p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
     geom_bar(stat='identity') + labs(fill=fill_lab, x='Stimulus Onset Asynchrony',
-                                     y='Trial Count') + theme(legend.position='top')
+                                     y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
   print(p)
 }
 # Count as a function of angle difference:
 afo_angle = function(df, fill_str, fill_lab){
-  df[,'angle_diff'] = as.factor(df[,'angle_diff'])
+  df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
   df[,fill_str] = as.factor(df[,fill_str])
-  p = ggplot(data=df, aes_string(x='angle_diff', y='count', fill=fill_str)) + 
-    geom_bar(stat='identity') + labs(fill=fill_lab, x='Angle Difference',
-                                     y='Trial Count') + theme(legend.position='top')
+  p = ggplot(data=df, aes_string(x='angle_diff_', y='count', fill=fill_str)) + 
+    geom_bar(stat='identity') + labs(fill=fill_lab, x='Angle',
+                                     y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
   print(p)
 }
 # Count as a function of SOA and angle difference:
 afo_soa_angle = function(df, fill_str, fill_lab){
   df[,'soa'] = as.factor(df[,'soa'])
-  df[,'angle_diff'] = as.factor(df[,'angle_diff'])
+  df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
   df[,fill_str] = as.factor(df[,fill_str])
   p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
-    facet_grid(reformulate('angle_diff', '.')) + geom_bar(stat='identity') + 
-    labs(fill=fill_lab, x='SOA x Angle Difference', y='Trial Count') + 
-    theme(legend.position='top')
+    facet_grid(reformulate('angle_diff_', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='SOA x Angle', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+afo_contrast_soa = function(df, fill_str, fill_lab){
+  df[,'stim1_c'] = as.factor(df[,'stim1_c'])
+  df[,'stim2_c'] = as.factor(df[,'stim2_c'])
+  df[,'soa_'] = as.factor(df[,'soa_'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='stim1_c', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim2_c', 'soa_')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Stimulus Contrasts', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
   print(p)
 }
 afo_angle_soa = function(df, fill_str, fill_lab){
-  df[,'soa'] = as.factor(df[,'soa'])
-  df[,'angle_diff'] = as.factor(df[,'angle_diff'])
+  df[,'soa_'] = as.factor(df[,'soa_'])
+  df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
   df[,fill_str] = as.factor(df[,fill_str])
-  p = ggplot(data=df, aes_string(x='angle_diff', y='count', fill=fill_str)) + 
-    facet_grid(reformulate('soa', '.')) + geom_bar(stat='identity') + 
-    labs(fill=fill_lab, x='Angle Difference x SOA', y='Trial Count') + 
-    theme(legend.position='top')
-  print(p)
-}
-afo_angles = function(df, fill_str, fill_lab){
-  df[,'soa'] = as.factor(df[,'soa'])
-  df[,'stim1_ori'] = as.factor(df[,'stim1_ori'])
-  df[,'stim2_ori'] = as.factor(df[,'stim2_ori'])
-  df[,fill_str] = as.factor(df[,fill_str])
-  p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
-    facet_grid(reformulate('stim1_ori', 'stim2_ori')) + geom_bar(stat='identity') + 
-    labs(fill=fill_lab, x='SOA x Stimulus Angles', y='Trial Count') + 
-    theme(legend.position='top')
+  p = ggplot(data=df, aes_string(x='angle_diff_', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('soa_', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Angle', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
   print(p)
 }
 ```
@@ -116,63 +141,105 @@ afo_angles = function(df, fill_str, fill_lab){
 ## Visibility ~ Contrast
 ```{r, fig.width=9.5, fig.height=2.5}
 # print(colnames(ds))  # debug
-ds_conf = ddply(ds, .(subj, resp_int_conf, stim1_c, stim2_c), summarise, 
-                count=length(resp_int_conf))
-afo_contrast(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
-ds_int = ddply(ds, .(subj, int_corr, stim1_c, stim2_c), summarise, count=length(int_corr))
-afo_contrast(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
+ds_conf = ddply(ds, .(subj, resp_int_conf_, stim1_c, stim2_c), summarise, 
+                count=length(resp_int_conf_))
+afo_contrast(df=ds_conf, fill_str='resp_int_conf_', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr_, stim1_c, stim2_c), summarise, count=length(int_corr_))
+afo_contrast(df=ds_int, fill_str='int_corr_', fill_lab='Correct Interval')
 ```
 
 ## Visibility ~ SOA
 ```{r, fig.width=3.5, fig.height=2.5}
-ds_conf = ddply(ds, .(subj, resp_int_conf, soa), summarise, count=length(resp_int_conf))
-afo_soa(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
+ds_conf = ddply(ds, .(subj, resp_int_conf_, soa), summarise, count=length(resp_int_conf_))
+afo_soa(df=ds_conf, fill_str='resp_int_conf_', fill_lab='Confidence')
 ds_int = ddply(ds, .(subj, int_corr, soa), summarise, count=length(int_corr))
 afo_soa(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
 ## Visibility ~ Angle Difference
 ```{r, fig.width=2.5, fig.height=2.5}
-ds_conf = ddply(ds, .(subj, resp_int_conf, angle_diff), summarise, count=length(resp_int_conf))
-afo_angle(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
-ds_int = ddply(ds, .(subj, int_corr, angle_diff), summarise, count=length(int_corr))
+ds_conf = ddply(ds, .(subj, resp_int_conf_, angle_diff_), summarise, count=length(resp_int_conf_))
+afo_angle(df=ds_conf, fill_str='resp_int_conf_', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, angle_diff_), summarise, count=length(int_corr))
 afo_angle(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
 ## Visibility ~ SOA x Angle
 ```{r, fig.width=4.5, fig.height=2.5}
-ds_conf = ddply(ds, .(subj, resp_int_conf, soa, angle_diff), summarise, 
-                count=length(resp_int_conf))
-afo_soa_angle(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
-ds_int = ddply(ds, .(subj, int_corr, soa, angle_diff), summarise, count=length(int_corr))
+ds_conf = ddply(ds, .(subj, resp_int_conf_, soa, angle_diff_), summarise, 
+                count=length(resp_int_conf_))
+afo_soa_angle(df=ds_conf, fill_str='resp_int_conf_', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, soa, angle_diff_), summarise, count=length(int_corr))
 afo_soa_angle(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
 ## Visibility ~ Angle x SOA
 ```{r, fig.width=4.5, fig.height=2.5}
-ds_conf = ddply(ds, .(subj, resp_int_conf, soa, angle_diff), summarise, 
-                count=length(resp_int_conf))
-afo_angle_soa(df=ds_conf, fill_str='resp_int_conf', fill_lab='Confidence')
-ds_int = ddply(ds, .(subj, int_corr, soa, angle_diff), summarise, count=length(int_corr))
-afo_angle_soa(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
+ds_conf = ddply(ds, .(subj, resp_int_conf_, soa_, angle_diff_), summarise, 
+                count=length(resp_int_conf_))
+afo_angle_soa(df=ds_conf, fill_str='resp_int_conf_', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr_, soa_, angle_diff_), summarise, count=length(int_corr))
+afo_angle_soa(df=ds_int, fill_str='int_corr_', fill_lab='Interval Response')
+```
+
+## Visibility ~ Contrast x SOA
+```{r, fig.width=9.5, fig.height=4.5}
+# print(colnames(ds))  # debug
+ds_conf = ddply(ds, .(subj, resp_int_conf_, stim1_c, stim2_c, soa_), summarise, 
+                count=length(resp_int_conf_))
+afo_contrast_soa(df=ds_conf, fill_str='resp_int_conf_', fill_lab='Confidence')
+ds_int = ddply(ds, .(subj, int_corr, stim1_c, stim2_c, soa_), summarise, count=length(int_corr))
+afo_contrast_soa(df=ds_int, fill_str='int_corr', fill_lab='Correct Interval')
 ```
 
 # Number judgment
 
 ## Number ~ Angle x SOA (visible)
 ```{r, fig.width=4.5, fig.height=2.5}
-ds_num = ddply(ds[ds$resp_int_conf>1,], .(subj, resp_num, soa, angle_diff), summarise, 
-               count=length(resp_num))
-afo_angle_soa(df=ds_num, fill_str='resp_num', fill_lab='Stimulus Number Response')
+ds_num = ddply(ds_vis, .(subj, resp_num_, soa_, angle_diff_), summarise, 
+               count=length(resp_num_))
+afo_angle_soa(df=ds_num, fill_str='resp_num_', fill_lab='Order Response')
+```
+
+## Number ~ Contrast x SOA
+```{r, fig.width=9.5, fig.height=4.5}
+ds_num = ddply(ds_vis, .(subj, resp_num_, stim1_c, stim2_c, soa_), summarise, 
+               count=length(resp_num_))
+afo_contrast_soa(df=ds_num, fill_str='resp_num_', fill_lab=resp_num_lab)
 ```
 
 # Angle judgment
 
 ## Angle ~ Angles x SOA (visible)
 ```{r, fig.width=6.5, fig.height=4.5}
-ds_ori = ddply(ds[ds$resp_int_conf>1,], .(subj, resp_ori, soa, stim1_ori, stim2_ori), summarise, 
+ds_ori = ddply(ds_vis, .(subj, resp_ori, soa_, stim1_ori, stim2_ori), summarise, 
                count=length(resp_ori))
 ds_ori$stim1_ori = paste('First =', ds_ori$stim1_ori)
 ds_ori$stim2_ori = paste('Second =', ds_ori$stim2_ori)
+afo_angles = function(df, fill_str, fill_lab){
+  df[,'soa_'] = as.factor(df[,'soa_'])
+  df[,'stim1_ori'] = as.factor(df[,'stim1_ori'])
+  df[,'stim2_ori'] = as.factor(df[,'stim2_ori'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='soa_', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim1_ori', 'stim2_ori')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='SOA x Stimulus Angles', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
 afo_angles(df=ds_ori, fill_str='resp_ori', fill_lab='Angle Response')
+```
+
+## Angle ~ SOA
+```{r, fig.width=4.5, fig.height=2.5}
+ds_ori = ddply(ds_vis, .(subj, resp_ori_, soa_, angle_diff_), summarise, 
+               count=length(resp_num_))
+afo_angle_soa(df=ds_ori, fill_str='resp_ori_', fill_lab=resp_ori_lab)
+```
+
+## Angle ~ Contrast x SOA
+```{r, fig.width=9.5, fig.height=4.5}
+ds_ori = ddply(ds_vis, .(subj, resp_ori_, stim1_c, stim2_c, soa_), summarise, 
+               count=length(resp_ori_))
+afo_contrast_soa(df=ds_ori, fill_str='resp_ori_', fill_lab=resp_ori_lab)
 ```
