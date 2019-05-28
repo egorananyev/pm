@@ -11,14 +11,13 @@ from __future__ import division  # so that 1/3=0.333 instead of 1/3=0
 from psychopy import visual, core, event, gui
 import numpy as np
 import os
-from psychopy.data import TrialHandler, importConditions
 import pandas as pd
 from datetime import datetime
 
 ## Initial variables.
 # experiment modes:
 shocky = True
-debug = True  # sets SOA to stim_dur+10 and lengthens stim_dur
+debug = False  # sets SOA to stim_dur+10 and lengthens stim_dur
 # experiment variables:
 exp_name = 'pm1'
 # stimulus parameters:
@@ -32,23 +31,22 @@ if debug:
 else:
     stim_dur = 2
 beg_buff = 10  # beginning buffer prior to stimulus onset
-end_buff = beg_buff
+end_buff = beg_buff * 10
 wiggle = 10  # additional 'wiggle room' for jittering of stimulus onset
 # interval duration includes two stimulus time windows to make the intervals consistent even if SOA=0:
 interval_dur = int(stim_dur * 2 + beg_buff + end_buff + wiggle)  # 34 frames, or 340 ms
 # trial duration:
-trial_dur = fix_dur + interval_dur
 resp_feedback_wait = 0.2
 
 # Reassign stimulus durations for the slower refresh rate:
 if shocky:
     fix_dur = int(fix_dur / 2)  # in frames
-    stim_dur = stim_dur / 2
+    stim_dur = stim_dur / 2  # 30 in debug
     beg_buff = beg_buff / 2  # beginning buffer prior to stimulus onset
     end_buff = beg_buff
     wiggle = wiggle / 2  # additional 'wiggle room' for jittering of stimulus onset
-    interval_dur = int(stim_dur * 2 + beg_buff + end_buff + wiggle)  # 17 frames
-    trial_dur = fix_dur + interval_dur
+    # noinspection PyRedeclaration
+    interval_dur = int(stim_dur * 2 + beg_buff + end_buff + wiggle)  # 17 frames, or 75 in debug
 
 if shocky:
     ## These are here just for the record -- monitor dimensions are stored in PsychoPy monitor center
@@ -100,12 +98,14 @@ cond_instr = 'Please do the following:\n' \
 
 # Condition file:
 if train:
-    exp_conditions = importConditions('cond-files/cond_' + exp_name + '_train' + '.xlsx')
+    exp_conditions = 'cond-files/cond_' + exp_name + '_train' + '.xlsx'
 else:
-    exp_conditions = importConditions('cond-files/cond_' + exp_name + '.xlsx')
+    exp_conditions = 'cond-files/cond_' + exp_name + '.xlsx'
 
 # Trial handler depending on the measure or experimental stage:
-trials = TrialHandler(exp_conditions, 1, extraInfo=exp_info)
+# trials = pd.read_excel('C:\Users\egora\Dropbox\Projects\pm\pm\cond-files\cond_pm1_train.xlsx')
+trials = pd.read_excel(exp_conditions)
+trials['drops'] = 0
 
 # output file:
 exp_dir = '..' + os.sep + 'data' + os.sep + exp_name
@@ -153,8 +153,8 @@ instr_text_stim = visual.TextStim(window, text=instr_text, height=.6, pos=[0, 1]
 fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, height=fix_size)
 
 # Target:
-stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)  #, blendmode='add')
-stim2 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)  #, blendmode='add')
+stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
+stim2 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
 box = visual.Rect(window, width=5, height=5)
 
 # Response buttons & text:
@@ -222,28 +222,31 @@ def resp_num_draw():
 
 def resp_num_monitor():
     # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'down', 'escape'])
+    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'down', 'space', 'escape'])
     if len(arrow_keys_) > 0:
         if 'left' in arrow_keys_:
             print('number response: 0', end='   ')
-            resp_stim_num_ = 0
+            resp_num_ = 0
             resp_num_button1.lineColor = 'red'
             resp_num_button1.draw()
         elif 'down' in arrow_keys_:
             print('number response: 1', end='   ')
-            resp_stim_num_ = 1
+            resp_num_ = 1
             resp_num_button2.lineColor = 'red'
             resp_num_button2.draw()
         elif 'right' in arrow_keys_:
             print('number response: 2', end='   ')
-            resp_stim_num_ = 2
+            resp_num_ = 2
             resp_num_button3.lineColor = 'red'
             resp_num_button3.draw()
+        elif 'space' in arrow_keys_:
+            resp_num_ = 'X'
         elif 'escape' in arrow_keys_:
             exit_routine()
-        return resp_stim_num_
+        # noinspection PyUnboundLocalVariable
+        return resp_num_
     else:
-        return 0
+        return 'N'
 
 # Resetting the number response buttons:
 def resp_num_reset():
@@ -264,23 +267,26 @@ def resp_loc_draw():
 
 def resp_loc_monitor():
     # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'escape'])
+    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'space', 'escape'])
     if len(arrow_keys_) > 0:
         if 'left' in arrow_keys_:
             print('location response: Left', end='   ')
-            resp_loc_ = 1
+            resp_loc_ = 'L'
             resp_loc_button1.lineColor = 'red'
             resp_loc_button1.draw()
         elif 'right' in arrow_keys_:
             print('location response: Right', end='   ')
-            resp_loc_ = 2
+            resp_loc_ = 'R'
             resp_loc_button2.lineColor = 'red'
             resp_loc_button2.draw()
+        elif 'space' in arrow_keys_:
+            resp_loc_ = 'X'
         elif 'escape' in arrow_keys_:
             exit_routine()
+        # noinspection PyUnboundLocalVariable
         return resp_loc_
     else:
-        return 0
+        return 'N'
 
 # Resetting the response buttons:
 def resp_loc_reset():
@@ -304,7 +310,7 @@ def resp_ori_draw(resp_num_):
 
 def resp_ori_monitor(resp_num_):
     # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'down', 'right', 'escape'])
+    arrow_keys_ = event.getKeys(keyList=['left', 'down', 'right', 'space', 'escape'])
     if len(arrow_keys_) > 0:
         if 'left' in arrow_keys_:
             print('orientation response: Left', end='   ')
@@ -316,16 +322,22 @@ def resp_ori_monitor(resp_num_):
             resp_ori_ = 'B'
             resp_ori_button2.lineColor = 'red'
             resp_ori_button2.draw()
+        elif 'down' in arrow_keys_ and not resp_num_ == 2:
+            print('improper response: dropping trial')
+            resp_ori_ = 'X'
         elif 'right' in arrow_keys_:
             print('orientation response: Right', end='   ')
             resp_ori_ = 'R'
             resp_ori_button3.lineColor = 'red'
             resp_ori_button3.draw()
+        elif 'space' in arrow_keys_:
+            resp_ori_ = 'X'
         elif 'escape' in arrow_keys_:
             exit_routine()
+        # noinspection PyUnboundLocalVariable
         return resp_ori_
     else:
-        return 0
+        return 'N'
 
 def resp_ori_reset(resp_num_):
     resp_ori_button1.lineColor = 'white'
@@ -335,10 +347,10 @@ def resp_ori_reset(resp_num_):
 
 ## Handy routines:
 # Return the angle of the orientation
-def stim_ori_angle(stim_ori):
-    if stim_ori == 'L':
+def stim_ori_angle(stim_ori_):
+    if stim_ori_ == 'L':
         return 135
-    elif stim_ori == 'R':
+    elif stim_ori_ == 'R':
         return 45
     else:
         exit_routine()
@@ -367,9 +379,9 @@ def exit_routine():
     else:
         data_columns = ['exp_name', 'frame_rate', 'stim_dur', 'beg_buff', 'end_buff', 'wiggle',  # experiment specs
                         'subj', 'block', 'trial_id',  # log info
-                        'soa', 'angle_diff', 'stim1_ori', 'stim2_ori', 'stim1_c', 'stim2_c',  # stim info
+                        'soa', 'stim1_ori', 'stim2_ori', 'stim1_c', 'stim2_c',  # stim info
                         'stim_loc', 'jitter',  # randomized variables
-                        'resp_num', 'resp_loc', 'resp_ori']  # subj resp
+                        'resp_num', 'resp_loc', 'resp_ori', 'drops']  # subj resp
         pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
         print('\noutput file path is ' + out_file_path)
 
@@ -381,7 +393,8 @@ def exit_routine():
 ## Initiating the trial loop
 n_trials_done = 0
 
-for trial in trials:
+# for trial in trials:
+while len(trials > 0):
 
     ## First trial initiates instructions and sends the expt initiation message to the eye tracker:
     if n_trials_done == 0:
@@ -392,6 +405,13 @@ for trial in trials:
 
         # wait until a space key event occurs after the instructions are displayed
         event.waitKeys(' ')
+
+    ## Randomly picking the current trial row, assigning it to 'trial' var, and dropping it from 'trials':
+    cur_trial_indx = int(np.random.choice(trials.index.values, 1))
+    trial = trials.ix[cur_trial_indx].copy()  # an explicit copy() is necessary due to a warning otherwise
+    trials = trials.drop([cur_trial_indx])
+    drop_trial = False
+    # print(trial)
 
     n_trials_done += 1
     print('\n======TRIAL#' + str(n_trials_done) + '======')
@@ -452,6 +472,12 @@ for trial in trials:
     print('loc=' + str(stim_loc) + ' soa=' + str(int(soa)) + ' ori1=' + str(stim1_ori) + ' ori2=' + str(stim2_ori) +
           ' c1=' + str(stim1_c) + ' c2=' + str(stim2_c))
 
+    ## Pre-trial fixation phase:
+    for cur_frame in range(fix_dur):
+        flip_time = frame_routine()
+        fix_cross.draw()
+        box.draw()
+
     ## Presentation phase
     for cur_frame in range(interval_dur):
         # Fixation presentation & frame routine:
@@ -478,11 +504,17 @@ for trial in trials:
     if debug:
         print('\n', end='')
 
+    ## Post-trial fixation phase:
+    for cur_frame in range(fix_dur):
+        flip_time = frame_routine()
+        fix_cross.draw()
+        box.draw()
+
     ## Response phase:
     event.clearEvents()
 
     # Stimulus number response:
-    resp_num = 0
+    resp_num = 'N'
     while not resp_num_given:
 
         window.flip()
@@ -490,9 +522,11 @@ for trial in trials:
         # Stimulus number response:
         resp_num_draw()
         if not resp_num_given:
-            if resp_num == 0:
+            if resp_num == 'N':
                 resp_num = resp_num_monitor()
             else:
+                if resp_num == 'X':
+                    drop_trial = True
                 resp_num_given = True
                 event.clearEvents()
 
@@ -502,8 +536,8 @@ for trial in trials:
     event.clearEvents()
 
     # Location response:
-    resp_loc = 0
-    if resp_num > 0:
+    resp_loc = 'N'
+    if resp_num > 0 and not drop_trial:
         while not resp_loc_given:
 
             window.flip()
@@ -511,9 +545,11 @@ for trial in trials:
             # Interval response:
             resp_loc_draw()
             if not resp_loc_given:
-                if resp_loc == 0:
+                if resp_loc == 'N':
                     resp_loc = resp_loc_monitor()
                 else:
+                    if resp_loc == 'X':
+                        drop_trial = True
                     resp_loc_given = True
                     event.clearEvents()
 
@@ -523,8 +559,8 @@ for trial in trials:
         event.clearEvents()
 
     # Orientation response:
-    resp_ori = 0
-    if resp_num > 0:
+    resp_ori = 'N'
+    if resp_num > 0 and not drop_trial:
         while not resp_ori_given:
 
             window.flip()
@@ -532,9 +568,11 @@ for trial in trials:
             # Stimulus number response:
             resp_ori_draw(resp_num)
             if not resp_ori_given:
-                if resp_ori == 0:
+                if resp_ori == 'N':
                     resp_ori = resp_ori_monitor(resp_num)
                 else:
+                    if resp_ori == 'X':
+                        drop_trial = True
                     resp_ori_given = True
                     event.clearEvents()
 
@@ -544,6 +582,12 @@ for trial in trials:
         event.clearEvents()
 
     ## Trial termination feedback:
+    if drop_trial:
+        trial_drops = trial['drops'] + 1
+        trial['drops'] = trial_drops
+        trials = trials.append(trial)
+    else:
+        trial_drops = trial['drops']
     instr_text_stim.setText('press spacebar to continue')
     instr_text_stim.draw()
     fix_cross.draw()
@@ -555,13 +599,16 @@ for trial in trials:
     flip_time = window.flip()
 
     ## Recording the data
-    output_mat[n_trials_done - 1] = {'exp_name': exp_name, 'frame_rate': frame_rate, 'stim_dur': stim_dur,
-                                     'beg_buff': beg_buff, 'end_buff': end_buff, 'wiggle': wiggle,
-                                     'subj': exp_info['subj'], 'block': exp_info['block'], 'trial_id': n_trials_done,
-                                     'soa': soa, 'stim1_ori': stim1_ori, 'stim2_ori': stim2_ori,
-                                     'stim1_c': stim1_c, 'stim2_c': stim2_c,
-                                     'stim_loc': stim_loc, 'jitter': jitter,
-                                     'resp_num': resp_num, 'resp_loc': resp_loc, 'resp_ori': resp_ori}
+    if not drop_trial:
+        output_mat[n_trials_done - 1] = {'exp_name': exp_name, 'frame_rate': frame_rate, 'stim_dur': stim_dur,
+                                         'beg_buff': beg_buff, 'end_buff': end_buff, 'wiggle': wiggle,
+                                         'subj': exp_info['subj'], 'block': exp_info['block'],
+                                         'trial_id': n_trials_done, 'soa': soa,
+                                         'stim1_ori': stim1_ori, 'stim2_ori': stim2_ori,
+                                         'stim1_c': stim1_c, 'stim2_c': stim2_c,
+                                         'stim_loc': stim_loc, 'jitter': jitter,
+                                         'resp_num': resp_num, 'resp_loc': resp_loc, 'resp_ori': resp_ori,
+                                         'drops': trial_drops}
 
 # Finishing the experiment
 exit_routine()
