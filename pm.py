@@ -166,7 +166,7 @@ fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, he
 # Target:
 stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
 stim2 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
-box = visual.Rect(window, width=5, height=5)
+box = visual.Rect(window, width=5, height=5, lineColor='white')
 
 # Response buttons & text:
 text_size = .6
@@ -196,15 +196,19 @@ text3_pos = (button_off[0], button_off[1]-arrow_y_off+.1)
 if para == 'int':
     resp_loc_text = visual.TextStim(window, text='interval?', height=text_size, pos=[0, 1.2])
     # For simplicity, I will refer to interval judgment as that of (temporal) location.
+    button_text_left = 'first'
+    button_text_right = 'second'
 # Location:
 elif para == 'loc':
     resp_loc_text = visual.TextStim(window, text='location?', height=text_size, pos=[0, 1.2])
+    button_text_left = 'left'
+    button_text_right = 'right'
 else:
     print('ERROR: Paradigm string not recognized!')
 resp_loc_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
-resp_loc_button1_text = visual.TextStim(window, text='left', height=text_size, pos=text1_pos)
+resp_loc_button1_text = visual.TextStim(window, text=button_text_left, height=text_size, pos=text1_pos)
 resp_loc_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
-resp_loc_button2_text = visual.TextStim(window, text='right', height=text_size, pos=text3_pos)
+resp_loc_button2_text = visual.TextStim(window, text=button_text_right, height=text_size, pos=text3_pos)
 
 # Number:
 resp_num_text = visual.TextStim(window, text='number of targets?', height=text_size, pos=[0, 1.2])
@@ -293,7 +297,7 @@ def resp_loc_monitor():
         if 'left' in arrow_keys_:
             print('location response: Left', end='   ')
             resp_loc_ = 'L'
-            resp_loc_button1.lineColor = 'red'
+            resp_loc_button1.lineColor = 'blue'
             resp_loc_button1.draw()
         elif 'right' in arrow_keys_:
             print('location response: Right', end='   ')
@@ -500,7 +504,6 @@ while len(trials > 0):
     for cur_frame in range(fix_dur):
         flip_time = frame_routine()
         fix_cross.draw()
-        box.draw()
 
     ## The number of if intervals is 2 for interval-based paradigms:
     if para == 'loc':
@@ -514,10 +517,15 @@ while len(trials > 0):
     ## Presentation phase
     # Iterating through intervals:
     for cur_int in [0, 1]:
+        if cur_int == 0:
+            box.lineColor = 'blue'
+        else:
+            box.lineColor = 'red'
         for cur_frame in range(interval_dur):
             # Fixation presentation & frame routine:
             flip_time = frame_routine()
-            fix_cross.draw()
+            if para == 'loc':
+                fix_cross.draw()
             box.draw()
 
             # Stimulus presentation:
@@ -544,9 +552,11 @@ while len(trials > 0):
             print('\n', end='')
 
         ## Post-trial fixation phase:
+        box.lineColor = 'white'
         for cur_frame in range(fix_dur):
             flip_time = frame_routine()
-            fix_cross.draw()
+            if para == 'loc':
+                fix_cross.draw()
             box.draw()
 
     ## Response phase:
@@ -554,29 +564,30 @@ while len(trials > 0):
 
     # Stimulus number response:
     resp_num = 'N'
-    while not resp_num_given:
+    if exp_name == 'pm2':
+        while not resp_num_given:
 
+            window.flip()
+
+            # Stimulus number response:
+            resp_num_draw()
+            if not resp_num_given:
+                if resp_num == 'N':
+                    resp_num = resp_num_monitor()
+                else:
+                    if resp_num == 'X':
+                        drop_trial = True
+                    resp_num_given = True
+                    event.clearEvents()
+
+        resp_num_reset()
         window.flip()
-
-        # Stimulus number response:
-        resp_num_draw()
-        if not resp_num_given:
-            if resp_num == 'N':
-                resp_num = resp_num_monitor()
-            else:
-                if resp_num == 'X':
-                    drop_trial = True
-                resp_num_given = True
-                event.clearEvents()
-
-    resp_num_reset()
-    window.flip()
-    core.wait(resp_feedback_wait)
-    event.clearEvents()
+        core.wait(resp_feedback_wait)
+        event.clearEvents()
 
     # Location response:
     resp_loc = 'N'
-    if resp_num > 0 and not drop_trial:
+    if exp_name == 'pm1':
         while not resp_loc_given:
 
             window.flip()
@@ -599,7 +610,7 @@ while len(trials > 0):
 
     # Orientation response:
     resp_ori = 'N'
-    if resp_num > 0 and not drop_trial:
+    if exp_name == 'pm2' and resp_num > 0 and not drop_trial:
         while not resp_ori_given:
 
             window.flip()

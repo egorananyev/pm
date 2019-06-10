@@ -1,0 +1,189 @@
+---
+title: "[pm1] Visualization & Analysis"
+author: "Egor Ananyev"
+date: "2019-05-22"
+output:
+    html_document:
+        toc: true
+editor_options: 
+  chunk_output_type: console
+---
+
+<style type="text/css">
+body, td{
+  font-family: Cambria;
+}
+code.r{
+  font-family: Inconsolata;
+}
+</style>
+
+# Data input and parsing
+```{r set-options, message=F}
+options(width=100)
+```
+
+```{r}
+shocky = F
+# options(width=90)  # temp
+library(plyr)
+library(ggplot2)
+if(shocky){ dropbox_dir='/Users/Egor/Dropbox' }else{ dropbox_dir='/Users/egora/Dropbox' }
+data_dir = paste(dropbox_dir, 'Projects/pm/data/pm1_int/', sep='/')
+subjs = dir(data_dir, pattern='subj-')
+ds = data.frame()
+# cur_subj = subjs  # temp
+for(cur_subj in subjs){
+  cur_subj_dir = paste0(data_dir, cur_subj)
+  blocks = dir(cur_subj_dir, pattern='block-')
+  # cur_block = blocks  # temp
+  for(cur_block in blocks){
+    cur_ds = read.csv(paste(paste(cur_subj_dir, cur_block, sep='/'), 'beh_out.csv', sep='/'))
+    # ds = cur_ds  # temp
+    ds = rbind(ds, cur_ds)
+  }
+}
+rm(blocks, cur_block, cur_subj, cur_ds, cur_subj_dir, shocky)
+# Useful columns
+ds$resp_int = '1st'
+ds$resp_int[ds$resp_loc=='R'] = '2nd'
+ds$loc_corr = as.numeric(as.character(ds$stim_loc) == as.character(ds$resp_int))
+ds$loc_corr_ = 'Correct'
+ds$loc_corr_[ds$loc_corr==0] = 'Incorrect'
+ds$loc_corr_ <- factor(ds$loc_corr_, c('Incorrect','Correct'))
+loc_corr_lab = 'Interval Response'
+ds$soa_ = paste0('SOA=', ds$soa)
+ds$resp_num_ = 'None'
+ds$resp_num_[ds$resp_num==1] = 'One'
+ds$resp_num_[ds$resp_num==2] = 'Two'
+ds$resp_num_ <- factor(ds$resp_num_, c('None', 'One', 'Two'))
+resp_num_lab = 'Reported Stimulus Number'
+ds$angle_diff = 1
+ds$angle_diff[ds$stim1_ori == ds$stim2_ori] = 0
+ds$angle_diff_ = 'Same'
+ds$angle_diff_[ds$angle_diff==1] = 'Different'
+ds$angle_diff_ <- factor(ds$angle_diff_, c('Same','Different'))
+ds$resp_ori_ = 'One'
+ds$resp_ori_[ds$resp_ori=='B'] = 'Two'
+resp_ori_lab = 'Reported Orientation Number'
+# ds$vis = 0
+# ds$vis[ds$resp_num>0] = 1
+# ds$vis_ = 'Invisible'
+# ds$vis_[ds$vis==1] = 'Visible'
+vis_lab = ''
+# Printing to screen
+head(ds)
+# 'Visible' trials only:
+# ds_vis = ds[ds$resp_num>0,]
+```
+
+# Visualization functions
+```{r}
+# A function for plotting y as a function of (afo) contrast of the two stimuli:
+afo_contrast = function(df, fill_str, fill_lab){
+  df[,'stim1_c'] = as.factor(df[,'stim1_c'])
+  df[,'stim2_c'] = as.factor(df[,'stim2_c'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='stim1_c', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim2_c', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Stimulus Contrasts (x = First Stimulus)', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+afo_contrast2 = function(df, fill_str, fill_lab){
+  df[,'stim1_c'] = as.factor(df[,'stim1_c'])
+  df[,'stim2_c'] = as.factor(df[,'stim2_c'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='stim2_c', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim1_c', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Stimulus Contrasts (x = Second Stimulus)', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+# Count as a function of SOA:
+afo_soa = function(df, fill_str, fill_lab){
+  df[,'soa'] = as.factor(df[,'soa'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
+    geom_bar(stat='identity') + labs(fill=fill_lab, x='Stimulus Onset Asynchrony',
+                                     y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+# Count as a function of angle difference:
+afo_angle = function(df, fill_str, fill_lab){
+  df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='angle_diff_', y='count', fill=fill_str)) + 
+    geom_bar(stat='identity') + labs(fill=fill_lab, x='Orientation',
+                                     y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+# Count as a function of SOA and angle difference:
+afo_soa_angle = function(df, fill_str, fill_lab){
+  df[,'soa'] = as.factor(df[,'soa'])
+  df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='soa', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('angle_diff_', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='SOA x Orientation', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+afo_contrast_soa = function(df, fill_str, fill_lab){
+  df[,'stim1_c'] = as.factor(df[,'stim1_c'])
+  df[,'stim2_c'] = as.factor(df[,'stim2_c'])
+  df[,'soa_'] = as.factor(df[,'soa_'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='stim1_c', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('stim2_c', 'soa_')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Stimulus Contrasts', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+afo_angle_soa = function(df, fill_str, fill_lab){
+  df[,'soa_'] = as.factor(df[,'soa_'])
+  df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
+  df[,fill_str] = as.factor(df[,fill_str])
+  p = ggplot(data=df, aes_string(x='angle_diff_', y='count', fill=fill_str)) + 
+    facet_grid(reformulate('soa_', '.')) + geom_bar(stat='identity') + 
+    labs(fill=fill_lab, x='Orientation', y='Trial Count') + 
+    theme_bw() + theme(legend.position='top')
+  print(p)
+}
+```
+
+# Visibility
+
+## Visibility ~ Contrast
+```{r, fig.width=9.5, fig.height=2.5}
+# print(colnames(ds))  # debug
+ds_loc = ddply(ds, .(subj, loc_corr_, stim1_c, stim2_c), summarise, count=length(loc_corr_))
+afo_contrast(df=ds_loc, fill_str='loc_corr_', fill_lab=loc_corr_lab)
+```
+
+## Visibility ~ SOA
+```{r, fig.width=3.5, fig.height=2.5}
+ds_loc = ddply(ds, .(subj, loc_corr_, soa), summarise, count=length(loc_corr_))
+afo_soa(df=ds_loc, fill_str='loc_corr_', fill_lab=loc_corr_lab)
+```
+
+## Visibility ~ Orientation Difference
+```{r, fig.width=2.5, fig.height=2.5}
+ds_loc = ddply(ds, .(subj, loc_corr_, angle_diff_), summarise, count=length(loc_corr_))
+afo_angle(df=ds_loc, fill_str='loc_corr_', fill_lab=loc_corr_lab)
+```
+
+## Visibility ~ SOA x Orientation
+```{r, fig.width=4.5, fig.height=2.5}
+ds_loc = ddply(ds, .(subj, loc_corr_, soa, angle_diff_), summarise, count=length(loc_corr_))
+afo_soa_angle(df=ds_loc, fill_str='loc_corr_', fill_lab=loc_corr_lab)
+```
+
+## Visibility ~ Contrast x SOA
+```{r, fig.width=9.5, fig.height=4.5}
+# print(colnames(ds))  # debug
+ds_loc = ddply(ds, .(subj, loc_corr_, stim1_c, stim2_c, soa_), summarise, count=length(loc_corr_))
+afo_contrast_soa(df=ds_loc, fill_str='loc_corr_', fill_lab=loc_corr_lab)
+```
