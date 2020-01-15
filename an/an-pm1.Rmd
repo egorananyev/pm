@@ -115,8 +115,7 @@ afo_angle = function(df, fill_str, fill_lab){
   df[,'angle_diff_'] = as.factor(df[,'angle_diff_'])
   df[,fill_str] = as.factor(df[,fill_str])
   p = ggplot(data=df, aes_string(x='angle_diff_', y='count', fill=fill_str)) + 
-    geom_bar(stat='identity') + labs(fill=fill_lab, x='Orientation',
-                                     y='Trial Count') + 
+    geom_bar(stat='identity') + labs(fill=fill_lab, x='Orientation', y='Trial Count') + 
     theme_bw() + theme(legend.position='top')
   print(p)
 }
