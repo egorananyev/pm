@@ -16,117 +16,85 @@ from datetime import datetime
 
 ## Initial variables.
 # experiment modes:
-shocky = True
-debug = False  # sets SOA to stim_dur+10 and lengthens stim_dur
+debug = True
 # experiment variables:
-exp_name = 'pm1'
-# stimulus parameters:
-stim_diam = 1.5  # for Shocky's Samsung monitor, a 5 deg stim = 6.3 cm
-stim_sf = 4  # cycles per degree (e.g., for a 5 deg stim, there will be 5 cycles)
-stim_x_off = stim_diam
-# timing variables (note that the number of frames will differ for 60 and 100 Hz refresh rates):
-fix_dur = int(60)  # in frames
+exp_name = 'meg1'
+
+## Monitor specification with *whole* monitor dimensions:
+# ds_mm = 1410
+# dr_px = (1920, 1080)  # display resolution in px
+# dd_mm = (864, 471.4)  # office Samsung monitor
+screen_name = 'meg60Hz'
+full_screen = True
+# Initiating the screen:
+window = visual.Window(fullscr=full_screen, monitor=screen_name, color=[-.5, -.5, -.5], units='deg',
+                       allowStencil=True, autoLog=False, screen=0, waitBlanking=False)
 if debug:
-    stim_dur = 60
+    frame_rate = window.getActualFrameRate()
 else:
-    stim_dur = 2
-beg_buff = 10  # beginning buffer prior to stimulus onset
-end_buff = beg_buff * 10
-wiggle = 10  # additional 'wiggle room' for jittering of stimulus onset
-# interval duration includes two stimulus time windows to make the intervals consistent even if SOA=0:
-interval_dur = int(stim_dur * 2 + beg_buff + end_buff + wiggle)  # 34 frames, or 340 ms
-# trial duration:
-resp_feedback_wait = 0.2
+    frame_rate = 60
+print('frame rate: ' + str(frame_rate))
 
-# Reassign stimulus durations for the slower refresh rate:
-if shocky:
-    fix_dur = int(fix_dur / 2)  # in frames
-    stim_dur = stim_dur / 2  # 30 in debug
-    beg_buff = beg_buff / 2  # beginning buffer prior to stimulus onset
-    end_buff = beg_buff
-    wiggle = wiggle / 2  # additional 'wiggle room' for jittering of stimulus onset
-    # noinspection PyRedeclaration
-    interval_dur = int(stim_dur * 2 + beg_buff + end_buff + wiggle)  # 17 frames, or 75 in debug
+## Visible area description:
+# visible_px = (1000, 630)
+# visible_mm = (450, 275)
+# visible_dva = (18.133, 11.1395)
+# viewing_distance_mm = 1410
+center_y_off_dva = -0.4571  # 25 px
+# Stimulus:
+box = visual.Rect(window, width=5, height=5, lineColor='white')
 
-if shocky:
-    ## These are here just for the record -- monitor dimensions are stored in PsychoPy monitor center
-    # ds = 72
-    # dr = (1920, 1080)  # display resolution in px
-    # dd = (51.6, 29.2)  # office Samsung monitor
-    screen_name = 'samsung'
-    full_screen = True
-else:
-    ## These are here just for the record -- monitor dimensions are stored in PsychoPy monitor center
-    # ds = 65  # distance to screen in cm
-    # dr = (1152, 864)  # display resolution in px
-    # dd = (40.0, 30.0)  # display dimensions in cm ... 39.0 x 29.5
-    screen_name = 'station3'
-    full_screen = True
-# fixation cross:
-fix_size = 0.2
-# stimulus dimensions:
+## Stimulus parameters:
+annulus_in_dva = 1
+annulus_out_dva = 10
+stim_sf_cpd = 1  # cycles per degree
+# Initiating the stimulus:
+stim = visual.GratingStim(window, size=annulus_out_dva, tex='sin', mask='gauss', pos=(0, center_y_off_dva),
+                          sf=stim_sf_cpd)
 
-## getting user info about the experiment session:
-exp_info = {u'expt': exp_name, u'subj': u'1', u'block': u'0', u'para': u'int'}  # block==0 is training block
-exp_name = exp_info['expt']
-para = exp_info['para']
+## Fixation cross:
+fix_cross_sz_dva = 0.5  # the diameter of the gross
+fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, height=fix_cross_sz_dva)
+
+## Timing variables (note that the number of frames will differ for 60 and 100 Hz refresh rates):
+fix_dur_fr = 2  # in frames
+prestim_t_min_s = .300  # in seconds
+prestim_t_max_s = .500
+poststim_t_s = .600
+stim_dur_fr = 1
+
+
+## Getting info on the run through GUI:
+exp_info = {u'subj': u'0000', u'block': u'0'}  # block==0 is training block
 dlg = gui.DlgFromDict(dictionary=exp_info, title=exp_name)  # dialogue box
 if not dlg.OK:
     core.quit()  # user pressed cancel
 exp_info['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
 
-# Assigning conditions:
+## Assigning conditions:
 print('Block: ' + exp_info['block'])
 if exp_info['block'] == '0':
     train = True
 else:
     train = False
 
-# Handling condition instructions:
-if para == 'loc':
-    cond_instr = 'Please do the following:\n' \
-                 '- look at the fixation cross at all times\n' \
-                 '- your targets are tilted gratings\n' \
-                 '- they may appear either on the left or right of the fixation\n' \
-                 '- there may be two, one, or *no* targets in a trial\n' \
-                 '- they might appear simultaneously or in sequence\n' \
-                 '- after each trial, indicate the location of the target(s):\n' \
-                 '    - left arrow\n' \
-                 '    - right arrow\n' \
-                 '- please guess if you are unsure'
-else:
-    cond_instr = 'Please do the following:\n' \
-                 '- look at the fixation cross at all times\n' \
-                 '- your targets are tilted gratings\n' \
-                 '- they may appear either in the first or second interval\n' \
-                 '- there may be two, one, or *no* targets in a trial\n' \
-                 '- the two targets might appear simultaneously or in sequence\n' \
-                 '- after each trial, indicate the interval with target(s):\n' \
-                 '    - left arrow = 1st interval\n' \
-                 '    - right arrow = 2nd interval\n' \
-                 '- please guess if you are unsure'
-
 ## Input and output
 
 # Condition file:
-if train:
-    exp_conditions = 'cond-files/cond_' + exp_name + '_train' + '.xlsx'
-else:
-    exp_conditions = 'cond-files/cond_' + exp_name + '.xlsx'
+exp_conditions = 'cond-files/cond_' + exp_name + '.xlsx'
 
 # Trial handler depending on the measure or experimental stage:
 # trials = pd.read_excel('C:\Users\egora\Dropbox\Projects\pm\pm\cond-files\cond_pm1_train.xlsx')
 trials = pd.read_excel(exp_conditions)
-trials['drops'] = 0
 
 # Output file:
-exp_dir = '..' + os.sep + 'data' + os.sep + exp_name + '_' + para
+exp_dir = '..' + os.sep + 'data' + os.sep + exp_name
 if not os.path.exists(exp_dir):
-    print('experiment directory does not exist')
+    print('experiment directory does not exist - making')
     os.makedirs(exp_dir)
 else:
     print('experiment directory exists')
-subj_dir = exp_dir + os.sep + 'subj-%02d' % int(exp_info['subj'])
+subj_dir = exp_dir + os.sep + 'subj-%04d' % int(exp_info['subj'])
 if not os.path.exists(subj_dir):
     os.makedirs(subj_dir)
 block_dir = subj_dir + os.sep + 'block-%s_%s' % (exp_info['block'], exp_info['time'])
@@ -137,240 +105,9 @@ out_file_path = block_dir + os.sep + 'beh_out.csv'
 # Output matrix:
 output_mat = {}
 
-## Monitor setup:
-if shocky:
-    window = visual.Window(monitor=screen_name, fullscr=full_screen, screen=0, units='deg')
-else:
-    # TODO make sure that 'station3' monitor profile exists and is properly configured
-    window = visual.Window(fullscr=full_screen, monitor=screen_name, color=[-.5, -.5, -.5], units='deg',
-                           allowStencil=True, autoLog=False, screen=0, waitBlanking=False)
-
-if shocky:
-    if debug:
-        frame_rate = window.getActualFrameRate()
-        print('frame rate: ' + str(frame_rate))
-    else:
-        frame_rate = 60
-else:
-    frame_rate = window.getActualFrameRate()
-    print('frame rate: ' + str(frame_rate))
-    if frame_rate < 100:
-        print('WARNING! The measured frame rate is lower than expected')
-
-## Initialize the stimuli and instructions
-space_text = "\n\nPress the spacebar to start"
-instr_text = cond_instr + space_text
-instr_text_stim = visual.TextStim(window, text=instr_text, height=.6, pos=[0, 1])
-fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, 0], rgb=1, height=fix_size)
-
-# Target:
-stim1 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
-stim2 = visual.GratingStim(window, size=stim_diam, tex='sin', mask='gauss', pos=(0, 0), sf=stim_sf)
-box = visual.Rect(window, width=5, height=5, lineColor='white')
-
-# Response buttons & text:
-text_size = .6
-
-# Button dimensions and positions:
-button_dim = [3, 1.2]
-button_off = [3.2, 0]
-button1_pos = (-button_off[0], button_off[1])
-button2_pos = (0, button_off[1])
-button3_pos = (button_off[0], button_off[1])
-
-# Arrow text:
-arrow_y_off = .3
-arrow1_pos = (-button_off[0], button_off[1]+arrow_y_off+.1)
-arrow2_pos = (0, button_off[1]+arrow_y_off+.1)
-arrow3_pos = (button_off[0], button_off[1]+arrow_y_off+.1)
-button1_arrow = visual.TextStim(window, text=u'\u2190', height=text_size, pos=arrow1_pos)
-button2_arrow = visual.TextStim(window, text=u'\u2193', height=text_size, pos=arrow2_pos)
-button3_arrow = visual.TextStim(window, text=u'\u2192', height=text_size, pos=arrow3_pos)
-
-# Text positions:
-text1_pos = (-button_off[0], button_off[1]-arrow_y_off+.1)
-text2_pos = (0, button_off[1]-arrow_y_off+.1)
-text3_pos = (button_off[0], button_off[1]-arrow_y_off+.1)
-
-# Interval:
-if para == 'int':
-    resp_loc_text = visual.TextStim(window, text='interval?', height=text_size, pos=[0, 1.2])
-    # For simplicity, I will refer to interval judgment as that of (temporal) location.
-    button_text_left = 'first'
-    button_text_right = 'second'
-# Location:
-elif para == 'loc':
-    resp_loc_text = visual.TextStim(window, text='location?', height=text_size, pos=[0, 1.2])
-    button_text_left = 'left'
-    button_text_right = 'right'
-else:
-    button_text_left = ''
-    button_text_right = ''
-    print('ERROR: Paradigm string not recognized!')
-resp_loc_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
-resp_loc_button1_text = visual.TextStim(window, text=button_text_left, height=text_size, pos=text1_pos)
-resp_loc_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
-resp_loc_button2_text = visual.TextStim(window, text=button_text_right, height=text_size, pos=text3_pos)
-
-# Number:
-resp_num_text = visual.TextStim(window, text='number of targets?', height=text_size, pos=[0, 1.2])
-resp_num_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
-resp_num_button1_text = visual.TextStim(window, text='none', height=text_size, pos=text1_pos)
-resp_num_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button2_pos)
-resp_num_button2_text = visual.TextStim(window, text='one', height=text_size, pos=text2_pos)
-resp_num_button3 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
-resp_num_button3_text = visual.TextStim(window, text='two', height=text_size, pos=text3_pos)
-
-# Orientation:
-resp_ori_text = visual.TextStim(window, text='pattern?', height=text_size, pos=[0, 1.2])
-resp_ori_button1 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button1_pos)
-resp_ori_button1_text = visual.TextStim(window, text='left tilt', height=text_size, pos=text1_pos)
-resp_ori_button2 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button2_pos)
-resp_ori_button2_text = visual.TextStim(window, text='both tilts', height=text_size, pos=text2_pos)
-resp_ori_button3 = visual.Rect(window, width=button_dim[0], height=button_dim[1], pos=button3_pos)
-resp_ori_button3_text = visual.TextStim(window, text='right tilt', height=text_size, pos=text3_pos)
-
-# The response buttons will remain in place: I won't make them toglable at this stage, but they won't render during
-# trials if they are not required.
-
-## Number of stimuli response buttons:
-def resp_num_draw():
-    # Confidence rendering:
-    resp_num_text.draw()
-    resp_num_button1.draw()
-    button1_arrow.draw()
-    resp_num_button1_text.draw()
-    resp_num_button2.draw()
-    button2_arrow.draw()
-    resp_num_button2_text.draw()
-    resp_num_button3.draw()
-    button3_arrow.draw()
-    resp_num_button3_text.draw()
-
-def resp_num_monitor():
-    # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'down', 'space', 'escape'])
-    if len(arrow_keys_) > 0:
-        if 'left' in arrow_keys_:
-            print('number response: 0', end='   ')
-            resp_num_ = 0
-            resp_num_button1.lineColor = 'red'
-            resp_num_button1.draw()
-        elif 'down' in arrow_keys_:
-            print('number response: 1', end='   ')
-            resp_num_ = 1
-            resp_num_button2.lineColor = 'red'
-            resp_num_button2.draw()
-        elif 'right' in arrow_keys_:
-            print('number response: 2', end='   ')
-            resp_num_ = 2
-            resp_num_button3.lineColor = 'red'
-            resp_num_button3.draw()
-        elif 'space' in arrow_keys_:
-            resp_num_ = 'X'
-        elif 'escape' in arrow_keys_:
-            exit_routine()
-        # noinspection PyUnboundLocalVariable
-        return resp_num_
-    else:
-        return 'N'
-
-# Resetting the number response buttons:
-def resp_num_reset():
-    resp_num_button1.lineColor = 'white'
-    resp_num_button2.lineColor = 'white'
-    resp_num_button3.lineColor = 'white'
-
-## Location response buttons:
-def resp_loc_draw():
-    # Confidence rendering:
-    resp_loc_text.draw()
-    resp_loc_button1.draw()
-    button1_arrow.draw()
-    resp_loc_button1_text.draw()
-    resp_loc_button2.draw()
-    button3_arrow.draw()
-    resp_loc_button2_text.draw()
-
-def resp_loc_monitor():
-    # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'right', 'space', 'escape'])
-    if len(arrow_keys_) > 0:
-        if 'left' in arrow_keys_:
-            print('location response: Left', end='   ')
-            resp_loc_ = 'L'
-            resp_loc_button1.lineColor = 'blue'
-            resp_loc_button1.draw()
-        elif 'right' in arrow_keys_:
-            print('location response: Right', end='   ')
-            resp_loc_ = 'R'
-            resp_loc_button2.lineColor = 'red'
-            resp_loc_button2.draw()
-        elif 'space' in arrow_keys_:
-            resp_loc_ = 'X'
-        elif 'escape' in arrow_keys_:
-            exit_routine()
-        # noinspection PyUnboundLocalVariable
-        return resp_loc_
-    else:
-        return 'N'
-
-# Resetting the response buttons:
-def resp_loc_reset():
-    resp_loc_button1.lineColor = 'white'
-    resp_loc_button2.lineColor = 'white'
-
-## Orientation response buttons:
-def resp_ori_draw(resp_num_):
-    # Button rendering:
-    resp_ori_text.draw()
-    resp_ori_button1.draw()
-    button1_arrow.draw()
-    resp_ori_button1_text.draw()
-    if resp_num_ == 2:
-        resp_ori_button2.draw()
-        button2_arrow.draw()
-        resp_ori_button2_text.draw()
-    resp_ori_button3.draw()
-    button3_arrow.draw()
-    resp_ori_button3_text.draw()
-
-def resp_ori_monitor(resp_num_):
-    # Monitoring for key presses:
-    arrow_keys_ = event.getKeys(keyList=['left', 'down', 'right', 'space', 'escape'])
-    if len(arrow_keys_) > 0:
-        if 'left' in arrow_keys_:
-            print('orientation response: Left', end='   ')
-            resp_ori_ = 'L'
-            resp_ori_button1.lineColor = 'red'
-            resp_ori_button1.draw()
-        elif 'down' in arrow_keys_ and resp_num_ == 2:
-            print('orientation response: Both', end='   ')
-            resp_ori_ = 'B'
-            resp_ori_button2.lineColor = 'red'
-            resp_ori_button2.draw()
-        elif 'down' in arrow_keys_ and not resp_num_ == 2:
-            print('improper response: dropping trial')
-            resp_ori_ = 'X'
-        elif 'right' in arrow_keys_:
-            print('orientation response: Right', end='   ')
-            resp_ori_ = 'R'
-            resp_ori_button3.lineColor = 'red'
-            resp_ori_button3.draw()
-        elif 'space' in arrow_keys_:
-            resp_ori_ = 'X'
-        elif 'escape' in arrow_keys_:
-            exit_routine()
-        # noinspection PyUnboundLocalVariable
-        return resp_ori_
-    else:
-        return 'N'
-
-def resp_ori_reset(resp_num_):
-    resp_ori_button1.lineColor = 'white'
-    if resp_num_ == 2:
-        resp_ori_button2.lineColor = 'white'
-    resp_ori_button3.lineColor = 'white'
+# Handling condition instructions:
+instr_text = 'Please blink when you see a cross in the middle.'
+instr_text_stim = visual.TextStim(window, text=instr_text, height=.6, pos=[0, 0])
 
 ## Handy routines:
 # Return the angle of the orientation
