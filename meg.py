@@ -42,6 +42,7 @@ print('frame rate: ' + str(frame_rate))
 # visible_dva = (18.133, 11.1395)
 # viewing_distance_mm = 1410
 center_y_off_dva = -0.4571  # 25 px
+center_y_off_px = 25
 
 ## Stimulus parameters:
 annulus_in_dva = 1
@@ -57,6 +58,13 @@ annulus_in_circle = visual.Circle(window, radius=annulus_in_dva/2, pos=(0, cente
 fix_cross_sz_dva = 1  # the diameter of the gross
 fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, center_y_off_dva], color='black',
                             height=fix_cross_sz_dva)
+
+## Light sensor stimulus:
+light_sensor_off_x = 505
+light_sensor_background = visual.Circle(window, radius=20, pos=(light_sensor_off_x, center_y_off_px),
+                                        fillColor='black', lineColor=background, units='pix')
+light_sensor_stim = visual.Circle(window, radius=11, pos=(light_sensor_off_x, center_y_off_px), fillColor='white',
+                                  lineColor=background, units='pix')  # 11 px ~ 5 mm ~ 0.2015 dva
 
 ## Timing variables (note that the number of frames will differ for 60 and 100 Hz refresh rates):
 fix_dur_fr = 2  # in frames
@@ -135,6 +143,7 @@ def frame_routine():
     flip_time_ = window.flip()
     annulus_in_circle.draw()
     fix_cross.draw()
+    light_sensor_background.draw()
     # Checking for quit (the Esc key)
     if event.getKeys(keyList=['escape']):
         exit_routine()
@@ -251,6 +260,9 @@ for block in range(num_blocks):
             # The said fixation stuff:
             annulus_in_circle.draw()
             fix_cross.draw()
+            # Visual event marker for Cedrus:
+            light_sensor_background.draw()
+            light_sensor_stim.draw()
 
         ## Post-stimulus fixation phase:
         stim_off_ts = cur_ts()
