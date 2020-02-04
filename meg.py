@@ -18,47 +18,89 @@ from datetime import datetime
 # experiment modes:
 debug = True
 # is Cedrus present?
-cedrus = False
+cedrus = True
 # experiment variables:
 exp_name = 'meg1'
 
 if cedrus:
     import pyxid
     devices = pyxid.get_xid_devices()
-    dev = devices[0]  # get the first device to use
-    print(dev)
-    dev.reset_base_timer()
-    dev.reset_rt_timer()
+    if len(devices) == 0:
+        print('No pyxid devices found.')
+        cedrus = False
+    else:
+        dev = devices[0]  # get the first device to use
+        print(dev)
+        dev.reset_base_timer()
+        dev.reset_rt_timer()
 
-    if dev.is_response_device():
-        while not dev.has_response():
-            dev.poll_for_response()
+        if dev.is_response_device():
+            while not dev.has_response():
+                dev.poll_for_response()
 
-        response = dev.get_next_response()
-        print(response)
-        dev.clear_response_queue()
+            response = dev.get_next_response()
+            print(response)
+            dev.clear_response_queue()
 
-    dev.set_pulse_duration(300)
+        dev.set_pulse_duration(50)  # the pulse duration for activate_line() calls, in (ms)
 
-    sleep_flash = .3
-    # import time
-    for bm in range(0, 16):
-        mask = 2 ** bm
-        print("activate_line bitmask: ", mask)
-        #dev.activate_line(lines=[1,3,5,7,9,11,13,15])
-        dev.activate_line(bitmask=mask)
+        sleep_flash = .3
+        # import time
 
-        # time.sleep(sleep_flash)
+        # "There are up to 16 output lines on XID devices that can be raised in any combination. To raise lines 1 and 7,
+        # for example, you pass in the list: activate_line(lines=[1, 7])."
+        # https://www.psychopy.org/api/hardware/cedrus.html
 
+        for bm in range(0, 7):  # < 256
+            mask = 2 ** bm
+            print("activate_line bitmask: ", mask)
+            # dev.activate_line(lines=[1,3,5,7,9,11,13,15])
+            # In code, consider >> win.callOnFlip(dev.activate_line,[1,2,3])
+            # https://community.cedrus.com/forum/hardware/general/1847-about-the-extra-port
+            dev.activate_line(bitmask=mask)
+            print('sent bitmask ' + str(mask))
+            # time.sleep(sleep_flash)
+
+## Getting info on the run through GUI:
+exp_info = {u'subj': u'1', u'run': u'1'}  # run==0 is training run
+dlg = gui.DlgFromDict(dictionary=exp_info, title=exp_name)  # dialogue box
+if not dlg.OK:
+    core.quit()  # user pressed cancel
+exp_info['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
+run = exp_info['run']
+
+## Visible area description:
+ds_mm = 1530  # distance
+visible_mm = (375, 330)  # (450, 275)
+visible_px = (850, 775)  # (1000, 630)
+center_y_off_px = -70
 ## Monitor specification with *whole* monitor dimensions:
-# ds_mm = 1410
 # dr_px = (1920, 1080)  # display resolution in px
-# dd_mm = (864, 471.4)
+# dd_mm = (864, 471.4)  # display resolution in mm
+
+# Converter functions:
+def mm2px(mm, dr=visible_px, dd=visible_mm):
+    return int(mm*(dr[0]/dd[0]))
+def px2mm(px, dr=visible_px, dd=visible_mm):
+    return px/(dr[0]/dd[0])
+def mm2dg(mm, ds=ds_mm):
+    return np.degrees(np.arctan(mm/ds))
+def dg2mm(dg, ds=ds_mm):
+    return ds*np.tan(np.radians(dg))
+def px2dg(px, mm2dg_=mm2dg, px2mm_=px2mm):
+    return mm2dg_(px2mm_(px))
+def dg2px(dg, mm2px_=mm2px, dg2mm_=dg2mm):
+    return int(mm2px_(dg2mm_(dg)))
+
+print('screen width in cm (for Psychopy): ' + str(px2mm(1920)/10))
+center_y_off_dva = px2dg(center_y_off_px)  # old: -0.4571 ~ 25 px
+
+## Window initiation
 screen_name = 'meg60Hz'
 full_screen = True
 # Initiating the screen:
 background = [-.0, -.0, -.0]  # unless I'm willing  to mess with the stim lum range, keep this gray
-window = visual.Window(fullscr=full_screen, monitor=screen_name, color=background, units='deg',
+window = visual.Window(fullscr=full_screen, monitor=screen_name, color='black', units='deg',
                        allowStencil=True, autoLog=False, screen=0, waitBlanking=False)
 if debug:
     frame_rate = window.getActualFrameRate()
@@ -66,23 +108,22 @@ else:
     frame_rate = 60
 print('frame rate: ' + str(frame_rate))
 
-## Visible area description:
-# visible_px = (1000, 630)
-# visible_mm = (450, 275)
-# visible_dva = (18.133, 11.1395)
-# viewing_distance_mm = 1410
-center_y_off_dva = -0.4571  # 25 px
-center_y_off_px = 25
+vis_box = visual.Rect(window, width=visible_px[0], height=visible_px[1], lineColor='white', fillColor=background,
+                      units='pix', pos=(0, center_y_off_px), opacity=1)
 
 ## Stimulus parameters:
 annulus_in_dva = 1
 annulus_out_dva = 10
 stim_sf_cpd = 1  # cycles per degree
-# Initiating the stimulus:
+# Initiating the stimulus, a standard Gabor grating:
 stim = visual.GratingStim(window, size=annulus_out_dva, tex='sin', mask='circle', pos=(0, center_y_off_dva),
                           sf=stim_sf_cpd)
+# The inner circle provides the inner side of the annulus:
 annulus_in_circle = visual.Circle(window, radius=annulus_in_dva/2, pos=(0, center_y_off_dva), fillColor=background,
                                   lineColor=background)
+# This thick line around the stimulus prevents the edges from appearing jagged:
+annulus_out_circle = visual.Circle(window, radius=annulus_out_dva/2, pos=(0, center_y_off_dva), fillColor=None,
+                                  lineColor=background, lineWidth=8, edges=64)
 
 ## Fixation cross:
 fix_cross_sz_dva = 1  # the diameter of the gross
@@ -90,11 +131,12 @@ fix_cross = visual.TextStim(window, text='+', bold='True', pos=[0, center_y_off_
                             height=fix_cross_sz_dva)
 
 ## Light sensor stimulus:
-light_sensor_off_x = 505
-light_sensor_background = visual.Circle(window, radius=20, pos=(light_sensor_off_x, center_y_off_px),
-                                        fillColor='black', lineColor=background, units='pix')
-light_sensor_stim = visual.Circle(window, radius=11, pos=(light_sensor_off_x, center_y_off_px), fillColor='white',
-                                  lineColor=background, units='pix')  # 11 px ~ 5 mm ~ 0.2015 dva
+light_sensor_off_x = 0  # 505
+light_sensor_off_y = -430
+light_sensor_background = visual.Circle(window, radius=30, pos=(light_sensor_off_x, center_y_off_px+light_sensor_off_y),
+                                        fillColor='black', lineColor=[-.5, -.5, -.5], units='pix')
+light_sensor_stim = visual.Circle(window, radius=3, pos=(light_sensor_off_x, center_y_off_px+light_sensor_off_y),
+                                  fillColor=[0, 0, 0], lineColor=[0, 0, 0], units='pix')
 
 ## Timing variables (note that the number of frames will differ for 60 and 100 Hz refresh rates):
 fix_dur_fr = 2  # in frames
@@ -105,14 +147,6 @@ poststim_t_fr = int(np.round(frame_rate * poststim_t_ms / 1000))
 num_blocks = 6  # the number of blocks for non-training runs
 blink_every_x_trials_min = 3
 blink_every_x_trials_max = 5
-
-## Getting info on the run through GUI:
-exp_info = {u'subj': u'0', u'run': u'0'}  # run==0 is training run
-dlg = gui.DlgFromDict(dictionary=exp_info, title=exp_name)  # dialogue box
-if not dlg.OK:
-    core.quit()  # user pressed cancel
-exp_info['time'] = datetime.now().strftime('%Y-%m-%d_%H%M')
-run = exp_info['run']
 
 ## Assigning conditions:
 print('run ' + exp_info['run'])
@@ -171,7 +205,9 @@ def stim_ori_angle(stim_ori_):
 # This is done at every frame update, regardless of trial phase, so predefining:
 def frame_routine():
     flip_time_ = window.flip()
+    vis_box.draw()
     annulus_in_circle.draw()
+    annulus_out_circle.draw()
     fix_cross.draw()
     light_sensor_background.draw()
     # Checking for quit (the Esc key)
@@ -183,6 +219,7 @@ def frame_routine():
 def exit_routine():
     # Say goodbye:
     window.flip()
+    vis_box.draw()
     instr_text_stim.setText('    Finished!\nRecording data...')
     instr_text_stim.draw()
     core.wait(.7)
@@ -207,6 +244,7 @@ def exit_routine():
 ## Initiate with the instruction screen:
 # instr_text_stim.setText(instr_text)
 instr_text_stim.draw()
+vis_box.draw()
 flip_time = window.flip()
 # Wait until a space key event occurs after the instructions are displayed:
 event.waitKeys(' ')
@@ -272,27 +310,59 @@ for block in range(num_blocks):
               ' phase=' + str(stim_phase) + ' prestim=' + str(prestim_t_ms), ' blink=', str(blink_trial))
 
         ## Pre-stimulus phase:
+        if cedrus:
+            # dev.activate_line(lines=[1])  # line 1 = trial onset
+            window.callOnFlip(dev.activate_line, bitmask=1)  # line 1
         trial_beg_ts = cur_ts()  # time stamp
         prestim_t_fr = int(np.round(frame_rate * prestim_t_ms / 1000))
         if blink_trial:
             fix_cross.color = 'white'
         for cur_frame in range(prestim_t_fr):
             flip_time = frame_routine()
+            # flip_time = window.flip()
+            # annulus_in_circle.draw()
+            # annulus_out_circle.draw()
+            # fix_cross.draw()
+            # light_sensor_background.draw()
+            # # Checking for quit (the Esc key)
+            # if event.getKeys(keyList=['escape']):
+            #     exit_routine()
 
         ## Presentation phase
+        if cedrus:
+            # line2 = stimulus onset; having a separate trigger to use it as a reference line for online averaging
+            if stim_ori == 'L':
+                # dev.activate_line(lines=[2, 3], leave_remaining_lines=True)  # line3 = left-leaning stimulus onset
+                # window.callOnFlip(dev.activate_line, bitmask=6)  # lines 2 and 3
+                window.callOnFlip(dev.activate_line, bitmask=2)  # line 2 only, if using light sensor
+            else:
+                # dev.activate_line(lines=[2, 4], leave_remaining_lines=True)  # line4 = right-leaning stimulus onset
+                # window.callOnFlip(dev.activate_line, bitmask=10)  # lines 2 and 4
+                window.callOnFlip(dev.activate_line, bitmask=4)  # line 3 only, if using light sensor
         stim_on_ts = cur_ts()
         # Iterating through frames:
         for cur_frame in range(stim_dur_fr):
             # Writing out the frame routine here since the fixation stuff needs to appear on top of stim
             flip_time = window.flip()
+            vis_box.draw()
             # Drawing the stimulus:
             stim.draw()
             # The said fixation stuff:
             annulus_in_circle.draw()
+            annulus_out_circle.draw()
             fix_cross.draw()
             # Visual event marker for Cedrus:
             light_sensor_background.draw()
             light_sensor_stim.draw()
+        # Stimulus offset:
+        # if cedrus:
+            # dev.clear_line(lines=[2])  # stimulus offset
+            # if stim_ori == 'L':
+            #     dev.clear_line(lines=[3])  # left-leaning stimulus offset
+            # else:
+            #     dev.clear_line(lines=[4])  # right-leaning stimulus offset
+            # window.callOnFlip(dev.activate_line, bitmask=16)  # stimulus offset
+            # consider dropping if using a light sensor
 
         ## Post-stimulus fixation phase:
         stim_off_ts = cur_ts()
@@ -301,6 +371,9 @@ for block in range(num_blocks):
         for cur_frame in range(poststim_t_fr):
             flip_time = frame_routine()
 
+        ## Trial end:
+        # if cedrus:
+        #     dev.clear_line(lines=[0])  # trial offset
         trial_end_ts = cur_ts()  # time stamp
 
         ## Recording the data
