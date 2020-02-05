@@ -123,7 +123,7 @@ annulus_in_circle = visual.Circle(window, radius=annulus_in_dva/2, pos=(0, cente
                                   lineColor=background)
 # This thick line around the stimulus prevents the edges from appearing jagged:
 annulus_out_circle = visual.Circle(window, radius=annulus_out_dva/2, pos=(0, center_y_off_dva), fillColor=None,
-                                  lineColor=background, lineWidth=8, edges=64)
+                                   lineColor=background, lineWidth=8, edges=64)
 
 ## Fixation cross:
 fix_cross_sz_dva = 1  # the diameter of the gross
@@ -233,7 +233,7 @@ def exit_routine():
         data_columns = ['exp_name', 'frame_rate', 'subj', 'run', 'block', 'trial_id', 'block_trial_id',
                         'trial_beg_ts', 'prestim_t_ms', 'prestim_t_fr', 'blink_trial',  # prestim; "ts"=timestamp
                         'stim_on_ts', 'stim_ori', 'stim_c', 'stim_phase', 'stim_dur_fr', 'stim_off_ts',  # stim info
-                        'trial_end_ts']
+                        'trial_end_ts', 'bitcode']
         pd.DataFrame.from_dict(output_mat, orient='index').to_csv(out_file_path, index=False, columns=data_columns)
         print('\noutput file path is ' + out_file_path)
 
@@ -285,6 +285,9 @@ for block in range(num_blocks):
 
         ## Stimulus variables:
 
+        # Setting the condition bitcode to be passed to MEG:
+        bitcode = trial['bitcode']
+
         # Randomizing whether the stimulus phase:
         stim_phase = np.random.rand(1)[0]  # phase=1 means one whole cycle; random of [0 to 1] is random phase
         stim.phase = stim_phase
@@ -307,7 +310,8 @@ for block in range(num_blocks):
 
         ## Print trial specifics to screen:
         print('ori=' + str(stim_ori) + ' c=' + str(stim_c) + ' dur=' + str(stim_dur_fr) +
-              ' phase=' + str(stim_phase) + ' prestim=' + str(prestim_t_ms), ' blink=', str(blink_trial))
+              ' phase=' + str(stim_phase) + ' prestim=' + str(prestim_t_ms), ' blink=', str(blink_trial),
+              ' bitcode=' + str(bitcode))
 
         ## Pre-stimulus phase:
         if cedrus:
@@ -330,15 +334,16 @@ for block in range(num_blocks):
 
         ## Presentation phase
         if cedrus:
+            window.callOnFlip(dev.activate_line, bitmask=bitcode)
             # line2 = stimulus onset; having a separate trigger to use it as a reference line for online averaging
-            if stim_ori == 'L':
+            # if stim_ori == 'L':
                 # dev.activate_line(lines=[2, 3], leave_remaining_lines=True)  # line3 = left-leaning stimulus onset
                 # window.callOnFlip(dev.activate_line, bitmask=6)  # lines 2 and 3
-                window.callOnFlip(dev.activate_line, bitmask=2)  # line 2 only, if using light sensor
-            else:
+                # window.callOnFlip(dev.activate_line, bitmask=2)  # line 2 only, if using light sensor
+            # else:
                 # dev.activate_line(lines=[2, 4], leave_remaining_lines=True)  # line4 = right-leaning stimulus onset
                 # window.callOnFlip(dev.activate_line, bitmask=10)  # lines 2 and 4
-                window.callOnFlip(dev.activate_line, bitmask=4)  # line 3 only, if using light sensor
+                # window.callOnFlip(dev.activate_line, bitmask=4)  # line 3 only, if using light sensor
         stim_on_ts = cur_ts()
         # Iterating through frames:
         for cur_frame in range(stim_dur_fr):
@@ -385,7 +390,7 @@ for block in range(num_blocks):
                                            'stim_on_ts': stim_on_ts, 'stim_ori': stim_ori,
                                            'stim_c': stim_c, 'stim_phase': stim_phase,
                                            'stim_dur_fr': stim_dur_fr, 'stim_off_ts': stim_off_ts,
-                                           'trial_end_ts': trial_end_ts}
+                                           'trial_end_ts': trial_end_ts, 'bitcode': bitcode}
 
 # Finishing the experiment
 exit_routine()
