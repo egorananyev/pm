@@ -142,7 +142,7 @@ light_sensor_stim = visual.Circle(window, radius=3, pos=(light_sensor_off_x, cen
 fix_dur_fr = 2  # in frames
 prestim_t_min_ms = 300  # in milliseconds
 prestim_t_max_ms = 500
-poststim_t_ms = 600
+poststim_t_ms = 900
 poststim_t_fr = int(np.round(frame_rate * poststim_t_ms / 1000))
 num_blocks = 6  # the number of blocks for non-training runs
 blink_every_x_trials_min = 3
@@ -245,6 +245,7 @@ def exit_routine():
 # instr_text_stim.setText(instr_text)
 instr_text_stim.draw()
 vis_box.draw()
+fix_cross.draw()
 flip_time = window.flip()
 # Wait until a space key event occurs after the instructions are displayed:
 event.waitKeys(' ')
@@ -273,7 +274,7 @@ for block in range(num_blocks):
         if no_blink_trials_count >= cur_blink_trial:
             blink_trial = True
             no_blink_trials_count = 0
-            cur_blink_trial = np.random.randint(low=blink_every_x_trials_min, high=blink_every_x_trials_max)
+            cur_blink_trial = np.random.randint(low=blink_every_x_trials_min, high=blink_every_x_trials_max+1)
         else:
             blink_trial = False
 
